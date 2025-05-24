@@ -3,6 +3,8 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { Subject } from '@/lib/generated/prisma';
+import { subjectCurriculumToEnum, isValidSubjectEnum } from '@/lib/curriculum';
 // import { getNextNode } from '@/lib/curriculum'; // No longer needed
 
 export interface CreateStudentData {
@@ -75,32 +77,57 @@ export async function createStudentAction(data: CreateStudentData) {
         
         const existingNodeIds = new Set(existingNodes.map(node => node.id));
         
-        // Create subject progress records
-        const validSubjectProgress = subjectProgress.map(sp => {
-          // If currentNodeId is null or doesn't exist, set it to null
-          const currentNodeId = sp.currentNodeId && existingNodeIds.has(sp.currentNodeId) 
-            ? sp.currentNodeId 
-            : null;
-          
-          return {
-            studentId: newStudent.id,
-            subject: sp.subject,
-            currentNodeId,
-          };
-        });
+        // Create subject progress records with proper enum conversion
+        const validSubjectProgress = subjectProgress
+          .map(sp => {
+            // Convert subject to enum format and validate
+            const enumSubject = subjectCurriculumToEnum(sp.subject);
+            if (!isValidSubjectEnum(enumSubject)) {
+              console.warn(`Invalid subject: ${sp.subject}, skipping`);
+              return null;
+            }
 
-        await tx.subjectProgress.createMany({
-          data: validSubjectProgress,
-        });
+            // If currentNodeId is null or doesn't exist, set it to null
+            const currentNodeId = sp.currentNodeId && existingNodeIds.has(sp.currentNodeId) 
+              ? sp.currentNodeId 
+              : null;
+            
+            return {
+              studentId: newStudent.id,
+              subject: enumSubject as Subject,
+              currentNodeId,
+            };
+          })
+          .filter(<T>(item: T | null): item is T => item !== null);
+
+        if (validSubjectProgress.length > 0) {
+          await tx.subjectProgress.createMany({
+            data: validSubjectProgress,
+          });
+        }
       } else {
         // Create subject progress records with no current nodes
-        await tx.subjectProgress.createMany({
-          data: subjectProgress.map(sp => ({
-            studentId: newStudent.id,
-            subject: sp.subject,
-            currentNodeId: null,
-          })),
-        });
+        const validSubjectProgress = subjectProgress
+          .map(sp => {
+            const enumSubject = subjectCurriculumToEnum(sp.subject);
+            if (!isValidSubjectEnum(enumSubject)) {
+              console.warn(`Invalid subject: ${sp.subject}, skipping`);
+              return null;
+            }
+
+            return {
+              studentId: newStudent.id,
+              subject: enumSubject as Subject,
+              currentNodeId: null,
+            };
+          })
+          .filter(<T>(item: T | null): item is T => item !== null);
+
+        if (validSubjectProgress.length > 0) {
+          await tx.subjectProgress.createMany({
+            data: validSubjectProgress,
+          });
+        }
       }
     }
 
@@ -111,15 +138,7 @@ export async function createStudentAction(data: CreateStudentData) {
   const completeStudent = await prisma.student.findUnique({
     where: { id: student.id },
     include: {
-      progress: {
-        include: {
-          curriculumNode: true,
-        },
-      },
       subjectProgress: true,
-      enrollments: {
-        where: { isActive: true },
-      },
     },
   });
 
@@ -153,7 +172,7 @@ export async function updateStudentAction(id: string, data: UpdateStudentData) {
     throw new Error('Student not found');
   }
 
-  // Update student and enrollments in a transaction
+  // Update student in a transaction
   await prisma.$transaction(async (tx) => {
     // Update the student
     await tx.student.update({
@@ -165,23 +184,13 @@ export async function updateStudentAction(id: string, data: UpdateStudentData) {
         avatar,
       },
     });
-
-
   });
 
   // Fetch the complete updated student data
   const completeStudent = await prisma.student.findUnique({
     where: { id },
     include: {
-      progress: {
-        include: {
-          curriculumNode: true,
-        },
-      },
       subjectProgress: true,
-      enrollments: {
-        where: { isActive: true },
-      },
     },
   });
 
@@ -208,19 +217,15 @@ export async function deleteStudentAction(id: string) {
     throw new Error('Student not found');
   }
 
-  // Soft delete the student and deactivate enrollments
+  // Soft delete the student and remove subject progress
   await prisma.$transaction(async (tx) => {
     await tx.student.update({
       where: { id },
       data: { isActive: false },
     });
 
-    await tx.studentEnrollment.updateMany({
+    await tx.subjectProgress.deleteMany({
       where: { studentId: id },
-      data: { 
-        isActive: false,
-        endDate: new Date(),
-      },
     });
   });
 

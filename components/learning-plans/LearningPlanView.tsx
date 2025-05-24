@@ -4,15 +4,18 @@ import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Clock, Target, CheckCircle2, Circle } from 'lucide-react';
+import { CheckCircle2, Circle, Calendar, BookOpen } from 'lucide-react';
 
-interface LearningPlanViewProps {
-  plan: {
+interface LearningPlan {
+  id: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  unitIds: string[];
+  student: {
     id: string;
-    title: string;
-    description?: string;
-    unitIds: string[];
-    estimatedHours?: number;
+    firstName: string;
+    lastName: string;
   };
 }
 
@@ -22,7 +25,7 @@ interface CurriculumUnit {
   courseTitle: string;
   subject: string;
   gradeLevel: string;
-  isCompleted?: boolean; // We'll track this via StudentProgress
+  isCompleted?: boolean; // Track completion status
 }
 
 const subjectColors: Record<string, string> = {
@@ -32,7 +35,7 @@ const subjectColors: Record<string, string> = {
   humanities: 'bg-orange-100 text-orange-800 border-orange-200',
 };
 
-export default function LearningPlanView({ plan }: LearningPlanViewProps) {
+export default function LearningPlanView({ plan }: { plan: LearningPlan }) {
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +56,7 @@ export default function LearningPlanView({ plan }: LearningPlanViewProps) {
         
         const { nodes } = await curriculumResponse.json();
         
-        // TODO: Fetch student progress for these units to show completion status
+        // TODO: Fetch completion status for these units
         // For now, all units are marked as not completed
         const unitsWithProgress = nodes.map((node: CurriculumUnit) => ({
           ...node,
@@ -103,10 +106,7 @@ export default function LearningPlanView({ plan }: LearningPlanViewProps) {
       {/* Plan Overview */}
       <Card>
         <CardHeader>
-          <CardTitle>{plan.title}</CardTitle>
-          {plan.description && (
-            <p className="text-sm text-muted-foreground">{plan.description}</p>
-          )}
+          <CardTitle>Learning Plan Overview</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -122,17 +122,15 @@ export default function LearningPlanView({ plan }: LearningPlanViewProps) {
             </div>
             
             {/* Summary Stats */}
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Target className="h-3 w-3" />
-                {units.length} total units
-              </span>
-              {plan.estimatedHours && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  ~{plan.estimatedHours} hours
-                </span>
-              )}
+            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {new Date(plan.startDate).toLocaleDateString()} - {new Date(plan.endDate).toLocaleDateString()}
+              </div>
+              <div className="flex items-center gap-1">
+                <BookOpen className="h-4 w-4" />
+                {plan.unitIds.length} units
+              </div>
             </div>
           </div>
         </CardContent>

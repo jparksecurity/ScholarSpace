@@ -1,7 +1,7 @@
-import { auth } from '@clerk/nextjs/server';
+import { getAuth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/lib/generated/prisma';
-import { getNextNode } from '@/lib/curriculum';
+import { PrismaClient, Subject } from '@/lib/generated/prisma';
+import { subjectCurriculumToEnum, isValidSubjectEnum } from '@/lib/curriculum';
 
 interface SubjectProgressData {
   subject: string;
@@ -11,9 +11,9 @@ interface SubjectProgressData {
 const prisma = new PrismaClient();
 
 // GET /api/students - Get all students for the authenticated user
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId } = getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -25,15 +25,7 @@ export async function GET() {
         isActive: true,
       },
       include: {
-        progress: {
-          include: {
-            curriculumNode: true,
-          },
-        },
         subjectProgress: true,
-        enrollments: {
-          where: { isActive: true },
-        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -53,7 +45,7 @@ export async function GET() {
 // POST /api/students - Create a new student
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId } = getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -91,7 +83,7 @@ export async function POST(request: NextRequest) {
 
       // Create subject progress entries if provided
       if (subjectProgress.length > 0) {
-        // Validate that the lastCompletedNodeIds actually exist
+        // Validate that the currentNodeIds actually exist
         const nodeIds = subjectProgress
           .map((sp: SubjectProgressData) => sp.lastCompletedNodeId)
           .filter(Boolean) as string[];
@@ -108,35 +100,57 @@ export async function POST(request: NextRequest) {
           
           const existingNodeIds = new Set(existingNodes.map(node => node.id));
           
-          // Create subject progress records
-          const validSubjectProgress = subjectProgress.map((sp: SubjectProgressData) => {
-            // If lastCompletedNodeId is null or doesn't exist, set currentNodeId to null
-            const lastCompletedNodeId = sp.lastCompletedNodeId && existingNodeIds.has(sp.lastCompletedNodeId) 
-              ? sp.lastCompletedNodeId 
-              : null;
-            
-            // Find the current node (next node to work on)
-            const currentNodeId = lastCompletedNodeId ? getNextNode(lastCompletedNodeId)?.id || null : null;
-            
-            return {
-              studentId: newStudent.id,
-              subject: sp.subject,
-              currentNodeId,
-            };
-          });
+          // Create subject progress records with proper enum conversion
+          const validSubjectProgress = subjectProgress
+            .map((sp: SubjectProgressData) => {
+              // Convert subject to enum format and validate
+              const enumSubject = subjectCurriculumToEnum(sp.subject);
+              if (!isValidSubjectEnum(enumSubject)) {
+                console.warn(`Invalid subject: ${sp.subject}, skipping`);
+                return null;
+              }
 
-          await tx.subjectProgress.createMany({
-            data: validSubjectProgress,
-          });
+              // If lastCompletedNodeId is null or doesn't exist, set currentNodeId to null
+              const currentNodeId = sp.lastCompletedNodeId && existingNodeIds.has(sp.lastCompletedNodeId) 
+                ? sp.lastCompletedNodeId 
+                : null;
+              
+              return {
+                studentId: newStudent.id,
+                subject: enumSubject as Subject,
+                currentNodeId,
+              };
+            })
+            .filter(<T>(item: T | null): item is T => item !== null);
+
+          if (validSubjectProgress.length > 0) {
+            await tx.subjectProgress.createMany({
+              data: validSubjectProgress,
+            });
+          }
         } else {
           // Create subject progress records with no completed nodes
-          await tx.subjectProgress.createMany({
-            data: subjectProgress.map((sp: SubjectProgressData) => ({
-              studentId: newStudent.id,
-              subject: sp.subject,
-              currentNodeId: null,
-            })),
-          });
+          const validSubjectProgress = subjectProgress
+            .map((sp: SubjectProgressData) => {
+              const enumSubject = subjectCurriculumToEnum(sp.subject);
+              if (!isValidSubjectEnum(enumSubject)) {
+                console.warn(`Invalid subject: ${sp.subject}, skipping`);
+                return null;
+              }
+
+              return {
+                studentId: newStudent.id,
+                subject: enumSubject as Subject,
+                currentNodeId: null,
+              };
+            })
+            .filter(<T>(item: T | null): item is T => item !== null);
+
+          if (validSubjectProgress.length > 0) {
+            await tx.subjectProgress.createMany({
+              data: validSubjectProgress,
+            });
+          }
         }
       }
 
@@ -147,15 +161,7 @@ export async function POST(request: NextRequest) {
     const completeStudent = await prisma.student.findUnique({
       where: { id: student.id },
       include: {
-        progress: {
-          include: {
-            curriculumNode: true,
-          },
-        },
         subjectProgress: true,
-        enrollments: {
-          where: { isActive: true },
-        },
       },
     });
 

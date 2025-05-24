@@ -7,12 +7,8 @@ import curriculumData from '@/curriculum_prerequisite_network.json';
 
 const prisma = new PrismaClient();
 
-// Simplified schema for the generated learning plan - just a list of units
 const LearningPlanSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  unitIds: z.array(z.string()), // Just the curriculum node IDs
-  estimatedHours: z.number() // Total estimated hours for the year
+  unitIds: z.array(z.string()),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,11 +23,6 @@ export async function POST(request: NextRequest) {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
-        progress: {
-          include: {
-            curriculumNode: true
-          }
-        },
         subjectProgress: {
           include: {
             currentNode: true
@@ -50,10 +41,6 @@ export async function POST(request: NextRequest) {
       : null;
 
     // Build context about student's current progress
-    const completedNodes = student.progress
-      .filter(p => p.status === 'COMPLETED')
-      .map(p => p.curriculumNode.id);
-
     const currentProgress = student.subjectProgress.map(sp => ({
       subject: sp.subject,
       currentNodeId: sp.currentNode?.id
@@ -69,8 +56,7 @@ export async function POST(request: NextRequest) {
     
     STUDENT CONTEXT:
     - Name: ${student.firstName} ${student.lastName}
-    - Age: ${age || 'Unknown'}
-    - Completed Units: ${completedNodes.length} units already completed
+    - Age: ${age}
     - Current Progress: ${JSON.stringify(currentProgress)}
     
     PARENT PREFERENCES:
@@ -88,27 +74,21 @@ export async function POST(request: NextRequest) {
     PLAN REQUIREMENTS:
     1. Return a simple ordered list of curriculum node IDs for the student to complete in 1 year
     2. Respect prerequisite relationships 
-    3. Don't include units the student has already completed
-    4. Include all subjects: math, science, ELA, humanities
-    5. Order them in a logical learning progression
-    6. Include 30-50 units total (reasonable for one year)
-    7. Estimate total hours for the entire plan
+    3. Include all subjects: math, science, ELA, humanities
+    4. Order them in a logical learning progression
+    5. Include 30-50 units total (reasonable for one year)
     
     IMPORTANT: Only include curriculum node IDs that exist in the provided curriculum data.`;
 
-    const userPrompt = `Create a simple 1-year learning plan with:
-    1. A descriptive title
-    2. A brief description of the plan's goals
-    3. An ordered list of curriculum node IDs to complete
-    4. Total estimated hours for the year
+    const userPrompt = `Create a 1-year learning plan by selecting curriculum node IDs in the proper sequence.
     
-    Parent preferences: "${preferences}"
+    Parent preferences: "${preferences || 'No specific preferences'}"
     
-    Focus on logical progression and balanced subject coverage.`;
+    Focus on logical progression and balanced subject coverage. Return only the unitIds array.`;
 
     // Generate the learning plan using AI
     const result = await generateObject({
-      model: openai('gpt-4o-mini'),
+      model: openai('o4-mini'),
       schema: LearningPlanSchema,
       system: systemPrompt,
       prompt: userPrompt,
@@ -132,14 +112,10 @@ export async function POST(request: NextRequest) {
     const learningPlan = await prisma.learningPlan.create({
       data: {
         studentId,
-        title: generatedPlan.title,
-        description: generatedPlan.description,
-        preferences: JSON.stringify(preferences),
-        unitIds: validUnitIds,
-        estimatedHours: generatedPlan.estimatedHours,
-        startDate,
-        endDate,
-        aiModel: 'gpt-4o-mini'
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        isActive: true,
+        unitIds: validUnitIds, // Use validated unit IDs
       }
     });
 

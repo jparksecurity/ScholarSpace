@@ -36,6 +36,20 @@ const curriculum = curriculumData as {
   }>;
 };
 
+// Utility functions for handling enum/curriculum mapping
+export function subjectEnumToCurriculum(enumValue: string): string {
+  return enumValue.toLowerCase();
+}
+
+export function subjectCurriculumToEnum(curriculumValue: string): string {
+  return curriculumValue.toUpperCase();
+}
+
+export function isValidSubjectEnum(subject: string): boolean {
+  const validEnums = ['MATH', 'ELA', 'SCIENCE', 'HUMANITIES'];
+  return validEnums.includes(subject.toUpperCase());
+}
+
 export function getUniqueSubjects(): string[] {
   const subjects = new Set(
     curriculum.nodes
@@ -55,7 +69,7 @@ export function getSubjectInfo(): SubjectInfo[] {
     const startingNodes = courses.map(course => course.units[0]).filter(Boolean);
     
     return {
-      subject,
+      subject: subjectCurriculumToEnum(subject), // Return enum format
       subjectName: getSubjectDisplayName(subject),
       description: getSubjectDescription(subject),
       startingNodes,
@@ -64,27 +78,31 @@ export function getSubjectInfo(): SubjectInfo[] {
 }
 
 function getSubjectDisplayName(subject: string): string {
+  const normalizedSubject = subject.toLowerCase();
   const displayNames: Record<string, string> = {
     'math': 'Mathematics',
     'ela': 'English Language Arts',
     'science': 'Science',
     'humanities': 'History & Social Studies'
   };
-  return displayNames[subject] || subject.charAt(0).toUpperCase() + subject.slice(1);
+  return displayNames[normalizedSubject] || subject.charAt(0).toUpperCase() + subject.slice(1);
 }
 
 function getSubjectDescription(subject: string): string {
+  const normalizedSubject = subject.toLowerCase();
   const descriptions: Record<string, string> = {
     'math': 'Number sense, algebra, geometry, and mathematical reasoning',
     'ela': 'Reading comprehension, vocabulary, and language skills',
     'science': 'Biology, chemistry, physics, and earth science concepts',
     'humanities': 'History, government, civics, and social studies'
   };
-  return descriptions[subject] || `Core concepts and skills in ${subject}`;
+  return descriptions[normalizedSubject] || `Core concepts and skills in ${subject}`;
 }
 
 export function getCoursesBySubject(subject: string): CourseInfo[] {
-  const subjectNodes = curriculum.nodes.filter(node => node.subject === subject);
+  // Normalize to lowercase for curriculum lookup
+  const normalizedSubject = subject.toLowerCase();
+  const subjectNodes = curriculum.nodes.filter(node => node.subject === normalizedSubject);
   
   // Group by course path
   const courseGroups = subjectNodes.reduce((acc, node) => {
@@ -130,7 +148,9 @@ export function getNodeById(nodeId: string): CurriculumNode | undefined {
 }
 
 export function getNodesBySubject(subject: string): CurriculumNode[] {
-  return curriculum.nodes.filter(node => node.subject === subject);
+  // Normalize to lowercase for curriculum lookup
+  const normalizedSubject = subject.toLowerCase();
+  return curriculum.nodes.filter(node => node.subject === normalizedSubject);
 }
 
 // Get the next node in the sequence for a given node
@@ -191,7 +211,8 @@ export function getNodesBeforeInSubject(nodeId: string, subject: string): Curric
   while (currentNode) {
     completedNodes.unshift(currentNode);
     const prevNode = getPreviousNode(currentNode.id);
-    if (prevNode && prevNode.subject === subject) {
+    // Normalize subject for comparison
+    if (prevNode && prevNode.subject === subject.toLowerCase()) {
       currentNode = prevNode;
     } else {
       break;

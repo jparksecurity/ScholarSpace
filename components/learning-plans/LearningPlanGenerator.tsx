@@ -55,7 +55,7 @@ export default function LearningPlanGenerator({ students, onPlanGenerated }: Lea
         throw new Error(data.error || 'Failed to generate learning plan');
       }
 
-      setSuccess(`Successfully generated learning plan: "${data.plan.title}"`);
+      setSuccess('Successfully generated learning plan!');
       setPreferences('');
       onPlanGenerated();
       

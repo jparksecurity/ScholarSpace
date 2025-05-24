@@ -12,15 +12,7 @@ async function getStudents(userId: string) {
       isActive: true,
     },
     include: {
-      progress: {
-        include: {
-          curriculumNode: true,
-        },
-      },
       subjectProgress: true,
-      enrollments: {
-        where: { isActive: true },
-      },
     },
     orderBy: {
       createdAt: 'desc',

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import LearningPlanGenerator from '@/components/learning-plans/LearningPlanGenerator';
 import LearningPlanView from '@/components/learning-plans/LearningPlanView';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Calendar, BookOpen, Trash2 } from 'lucide-react';
@@ -16,15 +16,18 @@ interface Student {
 
 interface LearningPlan {
   id: string;
-  title: string;
-  description?: string;
-  unitIds: string[];
-  estimatedHours?: number;
   startDate: string;
   endDate: string;
+  isActive: boolean;
+  unitIds: string[];
   createdAt: string;
   studentId: string;
   studentName?: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
 }
 
 export default function LearningPlansPage() {
@@ -68,7 +71,8 @@ export default function LearningPlansPage() {
             // Add student info to each plan for display
             const studentPlans = data.plans.map((plan: LearningPlan) => ({
               ...plan,
-              studentName: `${student.firstName} ${student.lastName}`
+              studentName: `${student.firstName} ${student.lastName}`,
+              studentId: student.id
             }));
             allPlans.push(...studentPlans);
           }
@@ -153,9 +157,8 @@ export default function LearningPlansPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <CardTitle className="text-lg">{plan.title}</CardTitle>
+                      <CardTitle className="text-lg">Learning Plan for {plan.studentName}</CardTitle>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>For: {plan.studentName}</span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {new Date(plan.startDate).toLocaleDateString()} - {new Date(plan.endDate).toLocaleDateString()}
@@ -174,9 +177,6 @@ export default function LearningPlansPage() {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  {plan.description && (
-                    <CardDescription>{plan.description}</CardDescription>
-                  )}
                 </CardHeader>
                 <CardContent>
                   <LearningPlanView plan={plan} />

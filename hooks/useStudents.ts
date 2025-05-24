@@ -1,28 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Student, StudentProgress, StudentEnrollment, SubjectProgress } from '@/lib/generated/prisma';
+import { Student, SubjectProgress, Subject } from '@/lib/generated/prisma';
+import { subjectCurriculumToEnum, isValidSubjectEnum } from '@/lib/curriculum';
 
 export interface StudentWithRelations extends Student {
-  progress: (StudentProgress & {
-    curriculumNode: {
-      id: string;
-      unitTitle: string;
-      courseTitle: string;
-      gradeLevel: string;
-      subject: string;
-    };
-  })[];
   subjectProgress: SubjectProgress[];
-  enrollments: StudentEnrollment[];
 }
 
 export interface CreateStudentData {
   firstName: string;
   lastName: string;
   dateOfBirth?: string;
-  gradeLevel: string;
   avatar?: string;
-  bio?: string;
-  subjects?: string[];
   subjectProgress?: {
     subject: string;
     currentNodeId: string | null;
@@ -71,12 +59,28 @@ export function useStudents(): UseStudentsReturn {
     try {
       setError(null);
       
+      // Convert and validate subject progress data
+      const processedData = {
+        ...data,
+        subjectProgress: data.subjectProgress?.map(sp => {
+          const enumSubject = subjectCurriculumToEnum(sp.subject);
+          if (!isValidSubjectEnum(enumSubject)) {
+            console.warn(`Invalid subject: ${sp.subject}, skipping`);
+            return null;
+          }
+          return {
+            ...sp,
+            subject: enumSubject
+          };
+        }).filter(Boolean) || []
+      };
+      
       const response = await fetch('/api/students', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(processedData),
       });
       
       if (!response.ok) {

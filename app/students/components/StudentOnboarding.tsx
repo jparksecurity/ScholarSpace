@@ -16,7 +16,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { getSubjectInfo, getCoursesBySubject, type SubjectInfo, type CourseInfo } from '@/lib/curriculum';
+import { 
+  getSubjectInfo, 
+  getCoursesBySubject, 
+  subjectCurriculumToEnum,
+  type SubjectInfo, 
+  type CourseInfo 
+} from '@/lib/curriculum';
 
 interface StudentOnboardingProps {
   onComplete: (data: OnboardingData) => void;
@@ -71,8 +77,9 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
   };
 
   const handleComplete = () => {
+    // Convert curriculum format subjects to enum format for database storage
     const subjectProgressData = Object.entries(subjectProgress).map(([subject, currentNodeId]) => ({
-      subject,
+      subject: subjectCurriculumToEnum(subject), // Convert to enum format
       currentNodeId,
     }));
 

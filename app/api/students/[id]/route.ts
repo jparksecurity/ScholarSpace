@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server';
+import { getAuth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/lib/generated/prisma';
 
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
+    const { userId } = getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,15 +22,7 @@ export async function GET(
         parentUserId: userId, // Ensure user can only access their own students
       },
       include: {
-        progress: {
-          include: {
-            curriculumNode: true,
-          },
-        },
         subjectProgress: true,
-        enrollments: {
-          where: { isActive: true },
-        },
       },
     });
 
@@ -54,7 +46,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
+    const { userId } = getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -80,7 +72,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Update student and enrollments in a transaction
+    // Update student in a transaction
     await prisma.$transaction(async (tx) => {
       // Update the student
       await tx.student.update({
@@ -92,23 +84,13 @@ export async function PUT(
           avatar,
         },
       });
-
-
     });
 
     // Fetch the complete updated student data
     const completeStudent = await prisma.student.findUnique({
       where: { id: params.id },
       include: {
-        progress: {
-          include: {
-            curriculumNode: true,
-          },
-        },
         subjectProgress: true,
-        enrollments: {
-          where: { isActive: true },
-        },
       },
     });
 
@@ -128,7 +110,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
+    const { userId } = getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -146,19 +128,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Soft delete the student and deactivate enrollments
+    // Soft delete the student and remove subject progress
     await prisma.$transaction(async (tx) => {
       await tx.student.update({
         where: { id: params.id },
         data: { isActive: false },
       });
 
-      await tx.studentEnrollment.updateMany({
+      await tx.subjectProgress.deleteMany({
         where: { studentId: params.id },
-        data: { 
-          isActive: false,
-          endDate: new Date(),
-        },
       });
     });
 

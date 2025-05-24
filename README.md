@@ -5,17 +5,19 @@ A comprehensive academic workspace for homeschooling families, built with Next.j
 ## Features
 
 ### Student Management
-- **Student Profiles**: Create and manage profiles for multiple students with basic information (name, grade level, date of birth, bio, avatar)
-- **Subject Enrollment**: Track which subjects each student is enrolled in
-- **Progress Tracking**: Monitor student progress across curriculum nodes with status tracking (Not Started, In Progress, Completed, Mastered, Needs Review)
-- **Onboarding Assessment**: Guided assessment process to evaluate student's current knowledge level when adding a new student
+- **Multi-Student Support**: Parents can manage multiple children
+- **Progress Tracking**: Track completion status and scores for each curriculum unit
+- **Subject Progress**: Monitor current position in each subject area (Math, ELA, Science, Humanities)
 
-### AI-Powered Learning Plans
-- **Personalized Plan Generation**: Create customized 1-year learning plans using OpenAI GPT-4-turbo
-- **Curriculum Integration**: Plans automatically follow Khan Academy's prerequisite network and respect learning progressions
-- **Parent Preferences**: Incorporate specific learning goals, pace preferences, and focus areas
-- **Progress Tracking**: Monitor completion of planned units with visual progress indicators
-- **Monthly Organization**: Plans are organized by month with estimated time commitments and priority levels
+### Curriculum Integration
+- **Khan Academy Curriculum**: Pre-loaded with Khan Academy's K-12 curriculum structure
+- **Prerequisite Relationships**: Maintains learning dependencies between curriculum units
+- **Grade-Level Organization**: Content organized by grade levels and subjects
+
+### Learning Plans
+- **AI-Generated Plans**: Create personalized 1-year learning plans using AI
+- **Curriculum Mapping**: Plans are built from actual curriculum units with proper sequencing
+- **Parent Preferences**: AI considers parent input when generating plans
 
 ### Authentication & Security
 - Clerk authentication integration for secure user management

@@ -26,20 +26,26 @@ model Student {
   updatedAt         DateTime              @updatedAt @map("updated_at")
 
   // Relationships
-  progress          StudentProgress[]
   subjectProgress   SubjectProgress[]
-  enrollments       StudentEnrollment[]
   learningPlans     LearningPlan[]
 
   @@index([parentUserId])
   @@map("students")
 }
 
+// Subject enum for type safety
+enum Subject {
+  MATH
+  ELA
+  SCIENCE
+  HUMANITIES
+}
+
 // Tracks the current position for each subject
 model SubjectProgress {
   id                    String          @id @default(cuid())
   studentId             String          @map("student_id")
-  subject               String          // math, ela, science, humanities
+  subject               Subject         // Now using enum for type safety
   currentNodeId         String?         @map("current_node_id") // what they should work on next
   updatedAt             DateTime        @updatedAt @map("updated_at")
   createdAt             DateTime        @default(now()) @map("created_at")
@@ -51,53 +57,6 @@ model SubjectProgress {
   @@unique([studentId, subject])
   @@index([studentId])
   @@map("subject_progress")
-}
-
-model StudentProgress {
-  id              String                @id @default(cuid())
-  studentId       String                @map("student_id")
-  nodeId          String                @map("node_id")
-  status          ProgressStatus        @default(NOT_STARTED)
-  completedAt     DateTime?             @map("completed_at")
-  score           Float?                // 0-100 percentage
-  timeSpent       Int?                  @map("time_spent") // in minutes
-  notes           String?
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
-
-  // Relations
-  student         Student               @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  curriculumNode  CurriculumNode        @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, nodeId])
-  @@index([studentId])
-  @@index([nodeId])
-  @@map("student_progress")
-}
-
-model StudentEnrollment {
-  id              String                @id @default(cuid())
-  studentId       String                @map("student_id")
-  subject         String
-  gradeLevel      String                @map("grade_level")
-  startDate       DateTime              @map("start_date")
-  endDate         DateTime?             @map("end_date")
-  isActive        Boolean               @default(true) @map("is_active")
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
-
-  // Relations
-  student         Student               @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@index([studentId])
-  @@map("student_enrollments")
-}
-
-// Simplified to focus on completion tracking
-enum ProgressStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  COMPLETED
 }
 
 model CurriculumNode {
@@ -114,7 +73,6 @@ model CurriculumNode {
   // Relationships
   outgoingEdges CurriculumEdge[] @relation("FromNode")
   incomingEdges CurriculumEdge[] @relation("ToNode")
-  progress      StudentProgress[]
   
   // Subject progress relationships
   currentFor       SubjectProgress[] @relation("CurrentNode")
@@ -142,15 +100,10 @@ model CurriculumEdge {
 model LearningPlan {
   id              String                @id @default(cuid())
   studentId       String                @map("student_id")
-  title           String
-  description     String?
-  preferences     String?               // JSON string of parent preferences
   startDate       DateTime              @map("start_date")
   endDate         DateTime              @map("end_date")
   isActive        Boolean               @default(true) @map("is_active")
-  aiModel         String                @map("ai_model") // Which AI model was used
   unitIds         String[]              @map("unit_ids") // Simple array of curriculum node IDs
-  estimatedHours  Float?                @map("estimated_hours") // Total estimated hours for the year
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
 
