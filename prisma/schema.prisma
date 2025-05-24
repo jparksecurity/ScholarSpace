@@ -27,10 +27,31 @@ model Student {
 
   // Relationships
   progress          StudentProgress[]
+  subjectProgress   SubjectProgress[]
   enrollments       StudentEnrollment[]
 
   @@index([parentUserId])
   @@map("students")
+}
+
+// Tracks the current position (last completed unit) for each subject
+model SubjectProgress {
+  id                    String          @id @default(cuid())
+  studentId             String          @map("student_id")
+  subject               String          // math, ela, science, humanities
+  lastCompletedNodeId   String?         @map("last_completed_node_id") // null means hasn't started
+  currentNodeId         String?         @map("current_node_id") // what they should work on next
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  createdAt             DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  student               Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lastCompletedNode     CurriculumNode? @relation("LastCompletedNode", fields: [lastCompletedNodeId], references: [id])
+  currentNode           CurriculumNode? @relation("CurrentNode", fields: [currentNodeId], references: [id])
+
+  @@unique([studentId, subject])
+  @@index([studentId])
+  @@map("subject_progress")
 }
 
 model StudentProgress {
@@ -73,12 +94,11 @@ model StudentEnrollment {
   @@map("student_enrollments")
 }
 
+// Simplified to focus on completion tracking
 enum ProgressStatus {
   NOT_STARTED
   IN_PROGRESS
   COMPLETED
-  MASTERED
-  NEEDS_REVIEW
 }
 
 model CurriculumNode {
@@ -96,6 +116,10 @@ model CurriculumNode {
   outgoingEdges CurriculumEdge[] @relation("FromNode")
   incomingEdges CurriculumEdge[] @relation("ToNode")
   progress      StudentProgress[]
+  
+  // Subject progress relationships
+  lastCompletedFor SubjectProgress[] @relation("LastCompletedNode")
+  currentFor       SubjectProgress[] @relation("CurrentNode")
 
   @@map("curriculum_nodes")
 }

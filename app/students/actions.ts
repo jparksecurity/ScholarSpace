@@ -3,18 +3,16 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
-import { ProgressStatus } from '@/lib/generated/prisma';
+import { getNextNode } from '@/lib/curriculum';
 
 export interface CreateStudentData {
   firstName: string;
   lastName: string;
   dateOfBirth?: string;
   avatar?: string;
-  currentProgress?: {
-    nodeId: string;
-    status?: string;
-    score?: number;
-    completedAt?: string;
+  subjectProgress?: {
+    subject: string;
+    lastCompletedNodeId: string | null;
   }[];
 }
 
@@ -37,7 +35,7 @@ export async function createStudentAction(data: CreateStudentData) {
     lastName,
     dateOfBirth,
     avatar,
-    currentProgress = [],
+    subjectProgress = [],
   } = data;
 
   // Validate required fields
@@ -45,11 +43,11 @@ export async function createStudentAction(data: CreateStudentData) {
     throw new Error('First name, last name, and date of birth are required');
   }
 
-  // Create student with enrollments in a transaction
+  // Create student with subject progress in a transaction
   const student = await prisma.$transaction(async (tx) => {
     // Create the student
     const newStudent = await tx.student.create({
-              data: {
+      data: {
         parentUserId: userId,
         firstName,
         lastName,
@@ -58,33 +56,54 @@ export async function createStudentAction(data: CreateStudentData) {
       },
     });
 
-
-
-    // Create initial progress entries if provided
-    if (currentProgress.length > 0) {
-      // First, check which curriculum nodes actually exist
-      const existingNodes = await tx.curriculumNode.findMany({
-        where: {
-          id: {
-            in: currentProgress.map((p) => p.nodeId),
-          },
-        },
-        select: { id: true },
-      });
+    // Create subject progress entries if provided
+    if (subjectProgress.length > 0) {
+      // Validate that the lastCompletedNodeIds actually exist
+      const nodeIds = subjectProgress
+        .map(sp => sp.lastCompletedNodeId)
+        .filter(Boolean) as string[];
       
-      const existingNodeIds = new Set(existingNodes.map(node => node.id));
-      const validProgress = currentProgress.filter((progress) => 
-        existingNodeIds.has(progress.nodeId)
-      );
-
-      if (validProgress.length > 0) {
-        await tx.studentProgress.createMany({
-          data: validProgress.map((progress) => ({
+      if (nodeIds.length > 0) {
+        const existingNodes = await tx.curriculumNode.findMany({
+          where: {
+            id: {
+              in: nodeIds,
+            },
+          },
+          select: { id: true },
+        });
+        
+        const existingNodeIds = new Set(existingNodes.map(node => node.id));
+        
+        // Create subject progress records
+        const validSubjectProgress = subjectProgress.map(sp => {
+          // If lastCompletedNodeId is null or doesn't exist, set it to null
+          const lastCompletedNodeId = sp.lastCompletedNodeId && existingNodeIds.has(sp.lastCompletedNodeId) 
+            ? sp.lastCompletedNodeId 
+            : null;
+          
+          // Find the current node (next node to work on)
+          const currentNodeId = lastCompletedNodeId ? getNextNode(lastCompletedNodeId)?.id || null : null;
+          
+          return {
             studentId: newStudent.id,
-            nodeId: progress.nodeId,
-            status: (progress.status as ProgressStatus) || ProgressStatus.NOT_STARTED,
-            score: progress.score,
-            completedAt: progress.completedAt ? new Date(progress.completedAt) : null,
+            subject: sp.subject,
+            lastCompletedNodeId,
+            currentNodeId,
+          };
+        });
+
+        await tx.subjectProgress.createMany({
+          data: validSubjectProgress,
+        });
+      } else {
+        // Create subject progress records with no completed nodes
+        await tx.subjectProgress.createMany({
+          data: subjectProgress.map(sp => ({
+            studentId: newStudent.id,
+            subject: sp.subject,
+            lastCompletedNodeId: null,
+            currentNodeId: null,
           })),
         });
       }
@@ -102,6 +121,7 @@ export async function createStudentAction(data: CreateStudentData) {
           curriculumNode: true,
         },
       },
+      subjectProgress: true,
       enrollments: {
         where: { isActive: true },
       },
@@ -163,6 +183,7 @@ export async function updateStudentAction(id: string, data: UpdateStudentData) {
           curriculumNode: true,
         },
       },
+      subjectProgress: true,
       enrollments: {
         where: { isActive: true },
       },

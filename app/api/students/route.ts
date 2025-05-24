@@ -1,12 +1,11 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, ProgressStatus } from '@/lib/generated/prisma';
+import { PrismaClient } from '@/lib/generated/prisma';
+import { getNextNode } from '@/lib/curriculum';
 
-interface ProgressData {
-  nodeId: string;
-  status?: string;
-  score?: number;
-  completedAt?: string;
+interface SubjectProgressData {
+  subject: string;
+  lastCompletedNodeId: string | null;
 }
 
 const prisma = new PrismaClient();
@@ -31,6 +30,7 @@ export async function GET() {
             curriculumNode: true,
           },
         },
+        subjectProgress: true,
         enrollments: {
           where: { isActive: true },
         },
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       lastName,
       dateOfBirth,
       avatar,
-      currentProgress = [],
+      subjectProgress = [],
     } = body;
 
     // Validate required fields
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create student with enrollments in a transaction
+    // Create student with subject progress in a transaction
     const student = await prisma.$transaction(async (tx) => {
       // Create the student
       const newStudent = await tx.student.create({
@@ -89,35 +89,54 @@ export async function POST(request: NextRequest) {
         },
       });
 
-
-
-      // Create initial progress entries if provided
-      if (currentProgress.length > 0) {
-        // First, check which curriculum nodes actually exist
-        const existingNodes = await tx.curriculumNode.findMany({
-          where: {
-            id: {
-              in: currentProgress.map((p: ProgressData) => p.nodeId),
+      // Create subject progress entries if provided
+      if (subjectProgress.length > 0) {
+        // Validate that the lastCompletedNodeIds actually exist
+        const nodeIds = subjectProgress
+          .map((sp: SubjectProgressData) => sp.lastCompletedNodeId)
+          .filter(Boolean) as string[];
+        
+        if (nodeIds.length > 0) {
+          const existingNodes = await tx.curriculumNode.findMany({
+            where: {
+              id: {
+                in: nodeIds,
+              },
             },
-          },
-          select: { id: true },
-        });
-        
-        const existingNodeIds = new Set(existingNodes.map(node => node.id));
-        const validProgress = currentProgress.filter((progress: ProgressData) => 
-          existingNodeIds.has(progress.nodeId)
-        );
-
-        console.log(`Found ${existingNodes.length} existing curriculum nodes out of ${currentProgress.length} requested`);
-        
-        if (validProgress.length > 0) {
-          await tx.studentProgress.createMany({
-            data: validProgress.map((progress: ProgressData) => ({
+            select: { id: true },
+          });
+          
+          const existingNodeIds = new Set(existingNodes.map(node => node.id));
+          
+          // Create subject progress records
+          const validSubjectProgress = subjectProgress.map((sp: SubjectProgressData) => {
+            // If lastCompletedNodeId is null or doesn't exist, set it to null
+            const lastCompletedNodeId = sp.lastCompletedNodeId && existingNodeIds.has(sp.lastCompletedNodeId) 
+              ? sp.lastCompletedNodeId 
+              : null;
+            
+            // Find the current node (next node to work on)
+            const currentNodeId = lastCompletedNodeId ? getNextNode(lastCompletedNodeId)?.id || null : null;
+            
+            return {
               studentId: newStudent.id,
-              nodeId: progress.nodeId,
-              status: (progress.status as ProgressStatus) || ProgressStatus.NOT_STARTED,
-              score: progress.score,
-              completedAt: progress.completedAt ? new Date(progress.completedAt) : null,
+              subject: sp.subject,
+              lastCompletedNodeId,
+              currentNodeId,
+            };
+          });
+
+          await tx.subjectProgress.createMany({
+            data: validSubjectProgress,
+          });
+        } else {
+          // Create subject progress records with no completed nodes
+          await tx.subjectProgress.createMany({
+            data: subjectProgress.map((sp: SubjectProgressData) => ({
+              studentId: newStudent.id,
+              subject: sp.subject,
+              lastCompletedNodeId: null,
+              currentNodeId: null,
             })),
           });
         }
@@ -135,6 +154,7 @@ export async function POST(request: NextRequest) {
             curriculumNode: true,
           },
         },
+        subjectProgress: true,
         enrollments: {
           where: { isActive: true },
         },

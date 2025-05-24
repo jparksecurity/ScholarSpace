@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Play, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,8 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { getSubjectInfo, getCoursesBySubject, type SubjectInfo, type CourseInfo } from '@/lib/curriculum';
 
 interface StudentOnboardingProps {
   onComplete: (data: OnboardingData) => void;
@@ -22,284 +24,251 @@ interface StudentOnboardingProps {
 }
 
 interface OnboardingData {
-  currentProgress: {
-    nodeId: string;
-    status: string;
-    score?: number;
+  subjectProgress: {
+    subject: string;
+    lastCompletedNodeId: string | null;
   }[];
 }
 
-interface CurriculumSample {
-  id: string;
-  unitTitle: string;
-  courseTitle: string;
-  gradeLevel: string;
-  subject: string;
-  description: string;
-}
-
-// Mock curriculum data for onboarding - in real app, this would come from your curriculum API
-const SAMPLE_CURRICULUM: CurriculumSample[] = [
-  {
-    id: 'math-addition-k',
-    unitTitle: 'Basic Addition',
-    courseTitle: 'Kindergarten Math',
-    gradeLevel: 'Kindergarten',
-    subject: 'Mathematics',
-    description: 'Understanding numbers 1-10 and simple addition problems like 2+3=5',
-  },
-  {
-    id: 'math-subtraction-k',
-    unitTitle: 'Basic Subtraction',
-    courseTitle: 'Kindergarten Math',
-    gradeLevel: 'Kindergarten',
-    subject: 'Mathematics',
-    description: 'Simple subtraction problems like 5-2=3 using objects and visual aids',
-  },
-  {
-    id: 'reading-phonics-k',
-    unitTitle: 'Letter Sounds',
-    courseTitle: 'Kindergarten Reading',
-    gradeLevel: 'Kindergarten',
-    subject: 'English Language Arts',
-    description: 'Recognizing letters and their sounds, basic phonics',
-  },
-  {
-    id: 'reading-sight-words-k',
-    unitTitle: 'Sight Words',
-    courseTitle: 'Kindergarten Reading',
-    gradeLevel: 'Kindergarten',
-    subject: 'English Language Arts',
-    description: 'Common words like "the", "and", "is", "to" that children should recognize instantly',
-  },
-];
-
-const STATUS_OPTIONS = [
-  { value: 'MASTERED', label: 'Mastered', icon: CheckCircle, color: 'text-green-600', description: 'Student has fully mastered this concept' },
-  { value: 'COMPLETED', label: 'Completed', icon: CheckCircle, color: 'text-blue-600', description: 'Student has completed but may need review' },
-  { value: 'IN_PROGRESS', label: 'Learning', icon: HelpCircle, color: 'text-yellow-600', description: 'Student is currently learning this' },
-  { value: 'NOT_STARTED', label: 'Not Started', icon: XCircle, color: 'text-gray-600', description: 'Student hasn\'t started this yet' },
-];
-
 export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProps) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [progress, setProgress] = useState<Record<string, string>>({});
-  const [curriculum, setCurriculum] = useState<CurriculumSample[]>([]);
+  const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
+  const [subjectProgress, setSubjectProgress] = useState<Record<string, string | null>>({});
+  const [showIntro, setShowIntro] = useState(true);
+  const [subjects, setSubjects] = useState<SubjectInfo[]>([]);
+  const [currentSubjectCourses, setCurrentSubjectCourses] = useState<CourseInfo[]>([]);
 
   useEffect(() => {
-    // In a real app, you'd fetch curriculum based on selected grade level
-    setCurriculum(SAMPLE_CURRICULUM);
+    setSubjects(getSubjectInfo());
   }, []);
 
-  const totalSteps = curriculum.length + 1; // +1 for intro step
-  const progressPercentage = ((currentStep + 1) / totalSteps) * 100;
+  useEffect(() => {
+    if (subjects[currentSubjectIndex]) {
+      const courses = getCoursesBySubject(subjects[currentSubjectIndex].subject);
+      setCurrentSubjectCourses(courses);
+    }
+  }, [currentSubjectIndex, subjects]);
 
-  const handleStatusChange = (nodeId: string, status: string) => {
-    setProgress(prev => ({ ...prev, [nodeId]: status }));
+  const totalSteps = subjects.length;
+  const progressPercentage = totalSteps > 0 ? ((currentSubjectIndex + 1) / totalSteps) * 100 : 0;
+  const currentSubject = subjects[currentSubjectIndex];
+
+  const handleProgressChange = (subject: string, nodeId: string | null) => {
+    setSubjectProgress(prev => ({ ...prev, [subject]: nodeId }));
   };
 
   const handleNext = () => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
+    if (currentSubjectIndex < totalSteps - 1) {
+      setCurrentSubjectIndex(currentSubjectIndex + 1);
+    } else {
+      handleComplete();
     }
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+    if (currentSubjectIndex > 0) {
+      setCurrentSubjectIndex(currentSubjectIndex - 1);
     }
   };
 
   const handleComplete = () => {
-    const currentProgress = Object.entries(progress).map(([nodeId, status]) => ({
-      nodeId,
-      status,
+    const subjectProgressData = Object.entries(subjectProgress).map(([subject, lastCompletedNodeId]) => ({
+      subject,
+      lastCompletedNodeId,
     }));
 
-    onComplete({ currentProgress });
+    onComplete({ subjectProgress: subjectProgressData });
   };
 
-  const handleQuickSetup = () => {
-    // Mark all curriculum items as "NOT_STARTED" for quick setup
-    const quickProgress = curriculum.map(item => ({
-      nodeId: item.id,
-      status: 'NOT_STARTED',
-    }));
-
-    onComplete({ currentProgress: quickProgress });
+  const canProceed = () => {
+    if (!currentSubject) return false;
+    // For now, allow proceeding without selection (meaning "hasn't started")
+    return true;
   };
 
-  const renderIntroStep = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <BookOpen className="h-16 w-16 mx-auto text-blue-600 mb-4" />
-        <h3 className="text-2xl font-bold mb-2">Let&apos;s Set Up Your Student&apos;s Profile</h3>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          We&apos;ll go through a few key learning concepts to understand where your student is in their learning journey. 
-          This helps us provide personalized recommendations.
-        </p>
-      </div>
+  if (showIntro) {
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Student Learning Assessment</DialogTitle>
+            <DialogDescription>
+              Let&apos;s understand where your student is in their learning journey across all subjects.
+            </DialogDescription>
+          </DialogHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleNext}>
-          <CardHeader>
-            <CardTitle className="text-lg">Detailed Assessment</CardTitle>
-            <CardDescription>
-              Go through each concept to accurately assess your student&apos;s current level
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full">Start Assessment</Button>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleQuickSetup}>
-          <CardHeader>
-            <CardTitle className="text-lg">Quick Setup</CardTitle>
-            <CardDescription>
-              Start with a fresh slate - mark everything as &quot;Not Started&quot; and assess later
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">Quick Setup</Button>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardContent className="pt-6">
-          <h4 className="font-semibold mb-3">Assessment levels:</h4>
-          <div className="space-y-3">
-            {STATUS_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              return (
-                <div key={option.value} className="flex items-center gap-3">
-                  <Icon className={`h-5 w-5 ${option.color}`} />
-                  <div>
-                    <span className="font-medium">{option.label}</span>
-                    <p className="text-sm text-muted-foreground">{option.description}</p>
-                  </div>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="h-6 w-6 text-blue-600" />
+                  How This Assessment Works
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground">
+                  For each subject, we&apos;ll show you the learning sequence from basic to advanced topics. 
+                  Simply tell us the last unit your student has successfully completed in that subject. 
+                  This helps us understand exactly where they are and what they should work on next.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {subjects.map((subject) => (
+                    <Card key={subject.subject} className="border-l-4 border-l-blue-500">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">{subject.subjectName}</CardTitle>
+                        <CardDescription className="text-sm">
+                          {subject.description}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Badge variant="outline" className="text-xs">
+                          Sequential learning path
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              );
-            })}
+
+                <Separator />
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-blue-600" />
+                    What We&apos;re Looking For
+                  </h4>
+                  <p className="text-sm text-blue-800">
+                    Select the most recent unit your student has <strong>successfully completed</strong>. 
+                    If they haven&apos;t started a subject yet, that&apos;s perfectly fine - just leave it unselected 
+                    and we&apos;ll start them at the beginning.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end">
+              <Button onClick={() => setShowIntro(false)} size="lg">
+                Start Assessment
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
-  const renderAssessmentStep = (item: CurriculumSample) => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <Badge variant="outline" className="mb-4">
-          {item.subject} • {item.gradeLevel}
-        </Badge>
-        <h3 className="text-xl font-bold mb-2">{item.unitTitle}</h3>
-        <p className="text-muted-foreground">{item.courseTitle}</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">About this concept:</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">{item.description}</p>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-4">
-        <Label className="text-base font-semibold">
-          How well does your student understand this concept?
-        </Label>
-        
-        <RadioGroup
-          value={progress[item.id] || ''}
-          onValueChange={(value) => handleStatusChange(item.id, value)}
-        >
-          {STATUS_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            return (
-              <div key={option.value} className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-gray-50">
-                <RadioGroupItem value={option.value} id={option.value} />
-                <Label htmlFor={option.value} className="flex items-center gap-3 cursor-pointer flex-1">
-                  <Icon className={`h-5 w-5 ${option.color}`} />
-                  <div>
-                    <span className="font-medium">{option.label}</span>
-                    <p className="text-sm text-muted-foreground">{option.description}</p>
-                  </div>
-                </Label>
-              </div>
-            );
-          })}
-        </RadioGroup>
-      </div>
-    </div>
-  );
-
-  const isLastStep = currentStep === totalSteps - 1;
-  const canProceed = currentStep === 0 || (curriculum[currentStep - 1] && progress[curriculum[currentStep - 1].id]);
+  if (!currentSubject) {
+    return null; // Loading state
+  }
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Student Progress Assessment</DialogTitle>
-          <DialogDescription>
-            Step {currentStep + 1} of {totalSteps}
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-xl">
+                {currentSubject.subjectName} - Learning Path
+              </DialogTitle>
+              <DialogDescription>
+                Step {currentSubjectIndex + 1} of {totalSteps} • {currentSubject.description}
+              </DialogDescription>
+            </div>
+            <Badge variant="outline">
+              {Math.round(progressPercentage)}% Complete
+            </Badge>
+          </div>
+          <Progress value={progressPercentage} className="w-full" />
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Progress</span>
-              <span>{Math.round(progressPercentage)}%</span>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">
+              What&apos;s the last unit your student completed in {currentSubject.subjectName}?
+            </h3>
+            <p className="text-muted-foreground">
+              Select the most recent unit they have successfully finished. 
+              If they haven&apos;t started this subject, leave it unselected.
+            </p>
+          </div>
+
+          <RadioGroup
+            value={subjectProgress[currentSubject.subject] || ''}
+            onValueChange={(value) => handleProgressChange(currentSubject.subject, value || null)}
+          >
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2 p-3 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
+                <RadioGroupItem value="" id={`${currentSubject.subject}-not-started`} />
+                <Label 
+                  htmlFor={`${currentSubject.subject}-not-started`}
+                  className="flex items-center gap-2 cursor-pointer text-sm font-medium"
+                >
+                  <Play className="h-4 w-4 text-gray-500" />
+                  Haven&apos;t started {currentSubject.subjectName} yet
+                </Label>
+              </div>
             </div>
-            <Progress value={progressPercentage} className="h-2" />
-          </div>
 
-          {/* Step Content */}
-          <div className="min-h-[400px]">
-            {currentStep === 0 
-              ? renderIntroStep()
-              : renderAssessmentStep(curriculum[currentStep - 1])
-            }
-          </div>
+            <div className="space-y-4">
+              {currentSubjectCourses.map((course) => (
+                <Card key={course.id} className="relative">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base">{course.title}</CardTitle>
+                        <CardDescription className="text-sm">
+                          Grade Level: {course.gradeLevel}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {course.gradeLevel}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid gap-2">
+                      {course.units.map((unit) => (
+                        <div key={unit.id} className="flex items-center space-x-2 p-2 rounded border hover:bg-gray-50">
+                          <RadioGroupItem value={unit.id} id={unit.id} />
+                          <Label 
+                            htmlFor={unit.id}
+                            className="flex items-center gap-2 cursor-pointer text-sm flex-1"
+                          >
+                            <CheckCircle className="h-3 w-3 text-green-600" />
+                            <span className="font-medium">Unit {unit.unit_number}:</span>
+                            <span>{unit.unit_title}</span>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </RadioGroup>
 
-          {/* Navigation */}
-          <div className="flex justify-between pt-4">
+          <div className="flex justify-between pt-4 border-t">
             <Button
               variant="outline"
               onClick={handleBack}
-              disabled={currentStep === 0}
-              className="flex items-center gap-2"
+              disabled={currentSubjectIndex === 0}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-
-                         <div className="flex gap-2">
-               {currentStep === 0 ? (
-                 // On intro step, navigation is handled by the cards
-                 <div className="text-sm text-muted-foreground">
-                   Choose an option above to continue
-                 </div>
-               ) : isLastStep ? (
-                 <Button onClick={handleComplete} className="flex items-center gap-2">
-                   Complete & Continue
-                 </Button>
-               ) : (
-                 <Button
-                   onClick={handleNext}
-                   disabled={!canProceed}
-                   className="flex items-center gap-2"
-                 >
-                   Next
-                   <ChevronRight className="h-4 w-4" />
-                 </Button>
-               )}
-             </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Save for Later
+              </Button>
+              <Button 
+                onClick={handleNext}
+                disabled={!canProceed()}
+              >
+                {currentSubjectIndex === totalSteps - 1 ? 'Complete Assessment' : 'Next Subject'}
+                {currentSubjectIndex !== totalSteps - 1 && <ChevronRight className="h-4 w-4 ml-2" />}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Student, StudentProgress, StudentEnrollment } from '@/lib/generated/prisma';
+import { Student, StudentProgress, StudentEnrollment, SubjectProgress } from '@/lib/generated/prisma';
 
 export interface StudentWithRelations extends Student {
   progress: (StudentProgress & {
@@ -11,6 +11,7 @@ export interface StudentWithRelations extends Student {
       subject: string;
     };
   })[];
+  subjectProgress: SubjectProgress[];
   enrollments: StudentEnrollment[];
 }
 
@@ -22,11 +23,9 @@ export interface CreateStudentData {
   avatar?: string;
   bio?: string;
   subjects?: string[];
-  currentProgress?: {
-    nodeId: string;
-    status?: string;
-    score?: number;
-    completedAt?: string;
+  subjectProgress?: {
+    subject: string;
+    lastCompletedNodeId: string | null;
   }[];
 }
 

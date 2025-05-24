@@ -27,6 +27,7 @@ export async function GET(
             curriculumNode: true,
           },
         },
+        subjectProgress: true,
         enrollments: {
           where: { isActive: true },
         },
@@ -104,6 +105,7 @@ export async function PUT(
             curriculumNode: true,
           },
         },
+        subjectProgress: true,
         enrollments: {
           where: { isActive: true },
         },

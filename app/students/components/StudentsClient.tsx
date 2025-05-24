@@ -21,6 +21,7 @@ import {
 import { StudentForm } from './StudentForm';
 import { StudentOnboarding } from './StudentOnboarding';
 import { deleteStudentAction } from '../actions';
+import { getSubjectProgressPercentage } from '@/lib/curriculum';
 
 interface StudentsClientProps {
   initialStudents: StudentWithRelations[];
@@ -33,11 +34,9 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
   const [editingStudent, setEditingStudent] = useState<StudentWithRelations | null>(null);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
   const [onboardingData, setOnboardingData] = useState<{
-    currentProgress?: Array<{
-      nodeId: string;
-      status?: string;
-      score?: number;
-      completedAt?: string;
+    subjectProgress?: Array<{
+      subject: string;
+      lastCompletedNodeId: string | null;
     }>;
   } | null>(null);
 
@@ -63,11 +62,9 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
   };
 
   const handleOnboardingComplete = (data: {
-    currentProgress?: Array<{
-      nodeId: string;
-      status?: string;
-      score?: number;
-      completedAt?: string;
+    subjectProgress?: Array<{
+      subject: string;
+      lastCompletedNodeId: string | null;
     }>;
   }) => {
     setShowOnboarding(false);
@@ -86,11 +83,70 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
   };
 
   const calculateProgress = (student: StudentWithRelations) => {
-    if (student.progress.length === 0) return 0;
-    const completed = student.progress.filter(p => 
-      p.status === 'COMPLETED' || p.status === 'MASTERED'
-    ).length;
-    return Math.round((completed / student.progress.length) * 100);
+    // Calculate overall progress based on subject progress
+    if (!student.subjectProgress || student.subjectProgress.length === 0) return 0;
+    
+    const progressValues = student.subjectProgress.map(sp => 
+      getSubjectProgressPercentage(sp.lastCompletedNodeId, sp.subject)
+    );
+    
+    const averageProgress = progressValues.reduce((sum, p) => sum + p, 0) / progressValues.length;
+    return Math.round(averageProgress);
+  };
+
+  const calculateSubjectProgress = (student: StudentWithRelations) => {
+    const subjectProgressMap: Record<string, {name: string, progress: number, color: string}> = {};
+    
+    const subjectNames = {
+      math: 'Math',
+      ela: 'ELA', 
+      science: 'Science',
+      humanities: 'Social Studies'
+    };
+    
+    const colors = {
+      math: 'bg-blue-500',
+      ela: 'bg-green-500',
+      science: 'bg-purple-500', 
+      humanities: 'bg-orange-500'
+    };
+
+    // Use SubjectProgress if available
+    if (student.subjectProgress && student.subjectProgress.length > 0) {
+      student.subjectProgress.forEach(sp => {
+        const progress = getSubjectProgressPercentage(sp.lastCompletedNodeId, sp.subject);
+        
+        subjectProgressMap[sp.subject] = {
+          name: subjectNames[sp.subject as keyof typeof subjectNames] || sp.subject,
+          progress,
+          color: colors[sp.subject as keyof typeof colors] || 'bg-gray-500'
+        };
+      });
+    } else {
+      // Fallback to old method if no subject progress exists
+      const subjects = ['math', 'ela', 'science', 'humanities'];
+      
+      subjects.forEach(subject => {
+        const subjectNodes = student.progress.filter(p => 
+          p.curriculumNode?.subject === subject
+        );
+        
+        if (subjectNodes.length > 0) {
+          const completed = subjectNodes.filter(p => 
+            p.status === 'COMPLETED'
+          ).length;
+          const progress = Math.round((completed / subjectNodes.length) * 100);
+          
+          subjectProgressMap[subject] = {
+            name: subjectNames[subject as keyof typeof subjectNames],
+            progress,
+            color: colors[subject as keyof typeof colors]
+          };
+        }
+      });
+    }
+    
+    return subjectProgressMap;
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -167,23 +223,36 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
+                    <span className="text-muted-foreground">Subject Progress</span>
                     <div className="flex items-center gap-1">
                       <TrendingUp className="h-3 w-3 text-green-600" />
-                      <span className="font-medium">{calculateProgress(student)}%</span>
+                      <span className="font-medium">{calculateProgress(student)}% Overall</span>
                     </div>
                   </div>
                   
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
-                      style={{ width: `${calculateProgress(student)}%` }}
-                    />
+                  <div className="space-y-2">
+                    {Object.entries(calculateSubjectProgress(student)).map(([subject, data]) => (
+                      <div key={subject} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium">{data.name}</span>
+                          <span>{data.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div
+                            className={`${data.color} h-1.5 rounded-full transition-all`}
+                            style={{ width: `${data.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {Object.keys(calculateSubjectProgress(student)).length === 0 && (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-muted-foreground">No progress data yet</p>
+                        <p className="text-xs text-muted-foreground">Complete the assessment to see progress</p>
+                      </div>
+                    )}
                   </div>
-
-
-
-
                 </div>
               </CardContent>
             </Card>

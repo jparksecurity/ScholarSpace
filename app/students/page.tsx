@@ -1,6 +1,8 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import { PrismaClient } from '@/lib/generated/prisma';
+
+const prisma = new PrismaClient();
 import { StudentsClient } from '@/app/students/components/StudentsClient';
 
 async function getStudents(userId: string) {
@@ -15,6 +17,7 @@ async function getStudents(userId: string) {
           curriculumNode: true,
         },
       },
+      subjectProgress: true,
       enrollments: {
         where: { isActive: true },
       },
