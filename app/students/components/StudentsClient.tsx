@@ -30,71 +30,67 @@ import { StudentForm } from './StudentForm';
 import { StudentOnboarding } from './StudentOnboarding';
 import { deleteStudentAction } from '../actions';
 import { 
-  getSubjectProgressPercentage, 
+  getSubjectProgressSummary,
   getNodeById, 
   getCoursesBySubject, 
-  subjectEnumToCurriculum 
 } from '@/lib/curriculum';
 
 interface StudentsClientProps {
   initialStudents: StudentWithRelations[];
+  isFirstTimeUser?: boolean;
 }
 
-export function StudentsClient({ initialStudents }: StudentsClientProps) {
+interface OnboardingData {
+  initialProgress: Array<{
+    subject: string;
+    lastCompletedNodeId: string | null;
+  }>;
+}
+
+export function StudentsClient({ initialStudents, isFirstTimeUser = false }: StudentsClientProps) {
   const [students, setStudents] = useState(initialStudents);
+  const [showOnboarding, setShowOnboarding] = useState(isFirstTimeUser);
   const [showForm, setShowForm] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithRelations | null>(null);
-  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
+  const [deletingStudent, setDeletingStudent] = useState<StudentWithRelations | null>(null);
+  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
   const [showProgressDetail, setShowProgressDetail] = useState(false);
   const [selectedStudentForProgress, setSelectedStudentForProgress] = useState<StudentWithRelations | null>(null);
-  const [onboardingData, setOnboardingData] = useState<{
-    subjectProgress?: Array<{
-      subject: string;
-      currentNodeId: string | null;
-    }>;
-  } | null>(null);
 
-  const handleAddStudent = () => {
+  const handleCreateStudent = () => {
     setEditingStudent(null);
     setOnboardingData(null);
-    setShowOnboarding(true);
+    setShowForm(true);
   };
 
   const handleEditStudent = (student: StudentWithRelations) => {
     setEditingStudent(student);
+    setOnboardingData(null);
     setShowForm(true);
   };
 
-  const handleDeleteStudent = async (studentId: string) => {
-    try {
-      await deleteStudentAction(studentId);
-      setStudents(prev => prev.filter(s => s.id !== studentId));
-      setDeletingStudentId(null);
-    } catch (error) {
-      console.error('Error deleting student:', error);
-    }
-  };
-
-  const handleOnboardingComplete = (data: {
-    subjectProgress?: Array<{
-      subject: string;
-      currentNodeId: string | null;
-    }>;
-  }) => {
-    setShowOnboarding(false);
+  const handleOnboardingComplete = (data: OnboardingData) => {
     setOnboardingData(data);
+    setShowOnboarding(false);
     setShowForm(true);
   };
 
   const handleStudentCreated = (newStudent: StudentWithRelations) => {
-    setStudents(prev => [newStudent, ...prev]);
+    setStudents([newStudent, ...students]);
   };
 
   const handleStudentUpdated = (updatedStudent: StudentWithRelations) => {
-    setStudents(prev =>
-      prev.map(student => (student.id === updatedStudent.id ? updatedStudent : student))
-    );
+    setStudents(students.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+  };
+
+  const handleDeleteStudent = async (student: StudentWithRelations) => {
+    try {
+      await deleteStudentAction(student.id);
+      setStudents(students.filter(s => s.id !== student.id));
+      setDeletingStudent(null);
+    } catch (error) {
+      console.error('Failed to delete student:', error);
+    }
   };
 
   const handleShowProgressDetail = (student: StudentWithRelations) => {
@@ -103,24 +99,24 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
   };
 
   const calculateProgress = (student: StudentWithRelations) => {
-    if (!student.subjectProgress || student.subjectProgress.length === 0) return 0;
+    if (!student.progressLog || student.progressLog.length === 0) return 0;
     
-    const progressValues = student.subjectProgress.map(sp =>
-      getSubjectProgressPercentage(sp.currentNodeId, subjectEnumToCurriculum(sp.subject))
-    );
+    const progressSummary = getSubjectProgressSummary(student.progressLog);
+    const progressValues = Object.values(progressSummary).map((summary: {
+      progressPercentage: number;
+    }) => summary.progressPercentage);
     
-    return Math.round(progressValues.reduce((sum, val) => sum + val, 0) / progressValues.length);
+    if (progressValues.length === 0) return 0;
+    
+    return Math.round(progressValues.reduce((sum: number, val: number) => sum + val, 0) / progressValues.length);
   };
 
   const calculateSubjectProgress = (student: StudentWithRelations) => {
-    const subjectProgressMap: Record<string, {name: string, progress: number, color: string}> = {};
+    if (!student.progressLog || student.progressLog.length === 0) {
+      return {};
+    }
     
-    const subjectNames = {
-      math: 'Mathematics',
-      ela: 'English Language Arts',
-      science: 'Science',
-      humanities: 'Humanities'
-    };
+    const progressSummary = getSubjectProgressSummary(student.progressLog);
     
     const colors = {
       math: 'bg-blue-500',
@@ -129,21 +125,20 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
       humanities: 'bg-orange-500'
     };
 
-    // Use SubjectProgress if available
-    if (student.subjectProgress && student.subjectProgress.length > 0) {
-      student.subjectProgress.forEach(sp => {
-        const subject = subjectEnumToCurriculum(sp.subject);
-        const progress = getSubjectProgressPercentage(sp.currentNodeId, subject);
-        
-        subjectProgressMap[subject] = {
-          name: subjectNames[subject as keyof typeof subjectNames] || subject,
-          progress,
-          color: colors[subject as keyof typeof colors] || 'bg-gray-500'
-        };
-      });
-    }
+    const result: Record<string, {name: string, progress: number, color: string}> = {};
     
-    return subjectProgressMap;
+    Object.entries(progressSummary).forEach(([subject, data]: [string, {
+      subjectName: string;
+      progressPercentage: number;
+    }]) => {
+      result[subject] = {
+        name: data.subjectName,
+        progress: data.progressPercentage,
+        color: colors[subject as keyof typeof colors] || 'bg-gray-500'
+      };
+    });
+    
+    return result;
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -159,7 +154,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
             Manage your children&apos;s learning progress
           </p>
         </div>
-        <Button onClick={handleAddStudent} className="flex items-center gap-2">
+        <Button onClick={handleCreateStudent} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add Student
         </Button>
@@ -173,7 +168,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
             <p className="text-muted-foreground mb-4">
               Add your first student to start tracking their learning progress
             </p>
-            <Button onClick={handleAddStudent}>Add Student</Button>
+            <Button onClick={handleCreateStudent}>Add Student</Button>
           </CardContent>
         </Card>
       ) : (
@@ -210,7 +205,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setDeletingStudentId(student.id)}
+                      onClick={() => setDeletingStudent(student)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -292,8 +287,8 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog
-        open={!!deletingStudentId}
-        onOpenChange={() => setDeletingStudentId(null)}
+        open={!!deletingStudent}
+        onOpenChange={() => setDeletingStudent(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -305,7 +300,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deletingStudentId && handleDeleteStudent(deletingStudentId)}
+              onClick={() => deletingStudent && handleDeleteStudent(deletingStudent)}
               className="bg-red-600 hover:bg-red-700"
             >
               Delete
@@ -339,8 +334,9 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
           <div className="space-y-6">
             <div className="grid gap-4">
               {selectedStudentForProgress && Object.entries(calculateSubjectProgress(selectedStudentForProgress)).map(([subject, data]) => {
-                const subjectProgress = selectedStudentForProgress.subjectProgress?.find(sp => subjectEnumToCurriculum(sp.subject) === subject);
-                const currentNode = subjectProgress?.currentNodeId ? getNodeById(subjectProgress.currentNodeId) : null;
+                const progressSummary = getSubjectProgressSummary(selectedStudentForProgress.progressLog || []);
+                const subjectData = progressSummary[subject];
+                const currentNode = subjectData?.currentNodeId ? getNodeById(subjectData.currentNodeId) : null;
                 const courses = getCoursesBySubject(subject);
                 
                 return (
@@ -369,6 +365,11 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
                             <span className="font-medium">{data.progress}%</span>
+                            {subjectData && (
+                              <span className="text-muted-foreground">
+                                {subjectData.completedCount} of {subjectData.totalCount} units completed
+                              </span>
+                            )}
                           </div>
                           <Progress value={data.progress} className="h-2" />
                         </div>

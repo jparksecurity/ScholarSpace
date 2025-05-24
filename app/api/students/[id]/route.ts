@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(request);
+    const { userId } = await getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,7 +22,14 @@ export async function GET(
         parentUserId: userId, // Ensure user can only access their own students
       },
       include: {
-        subjectProgress: true,
+        progressLog: {
+          include: {
+            node: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
@@ -30,11 +37,11 @@ export async function GET(
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    return NextResponse.json(student);
+    return NextResponse.json({ student });
   } catch (error) {
     console.error('Error fetching student:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch student' },
       { status: 500 }
     );
   }
@@ -46,7 +53,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(request);
+    const { userId } = await getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -90,15 +97,22 @@ export async function PUT(
     const completeStudent = await prisma.student.findUnique({
       where: { id: params.id },
       include: {
-        subjectProgress: true,
+        progressLog: {
+          include: {
+            node: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
-    return NextResponse.json(completeStudent);
+    return NextResponse.json({ student: completeStudent });
   } catch (error) {
     console.error('Error updating student:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to update student' },
       { status: 500 }
     );
   }
@@ -110,7 +124,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(request);
+    const { userId } = await getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -128,23 +142,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Soft delete the student and remove subject progress
+    // Soft delete the student and optionally clean up progress log
     await prisma.$transaction(async (tx) => {
       await tx.student.update({
         where: { id: params.id },
         data: { isActive: false },
       });
 
-      await tx.subjectProgress.deleteMany({
-        where: { studentId: params.id },
-      });
+      // Note: ProgressLog entries are kept for historical tracking
+      // They will be automatically cleaned up by the CASCADE delete if needed
     });
 
     return NextResponse.json({ message: 'Student deleted successfully' });
   } catch (error) {
     console.error('Error deleting student:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to delete student' },
       { status: 500 }
     );
   }

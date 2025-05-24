@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Student, SubjectProgress, Subject } from '@/lib/generated/prisma';
+import { Student, ProgressLog, CurriculumNode } from '@/lib/generated/prisma';
 import { subjectCurriculumToEnum, isValidSubjectEnum } from '@/lib/curriculum';
 
+export interface ProgressLogWithNode extends ProgressLog {
+  node: CurriculumNode;
+}
+
 export interface StudentWithRelations extends Student {
-  subjectProgress: SubjectProgress[];
+  progressLog: ProgressLogWithNode[];
 }
 
 export interface CreateStudentData {
@@ -11,9 +15,9 @@ export interface CreateStudentData {
   lastName: string;
   dateOfBirth?: string;
   avatar?: string;
-  subjectProgress?: {
+  initialProgress?: {
     subject: string;
-    currentNodeId: string | null;
+    lastCompletedNodeId: string | null;
   }[];
 }
 
@@ -23,9 +27,9 @@ interface UseStudentsReturn {
   students: StudentWithRelations[];
   loading: boolean;
   error: string | null;
-  createStudent: (data: CreateStudentData) => Promise<StudentWithRelations | null>;
-  updateStudent: (id: string, data: UpdateStudentData) => Promise<StudentWithRelations | null>;
-  deleteStudent: (id: string) => Promise<boolean>;
+  createStudent: (data: CreateStudentData) => Promise<StudentWithRelations>;
+  updateStudent: (id: string, data: UpdateStudentData) => Promise<StudentWithRelations>;
+  deleteStudent: (id: string) => Promise<void>;
   refreshStudents: () => Promise<void>;
 }
 
@@ -46,107 +50,87 @@ export function useStudents(): UseStudentsReturn {
       }
       
       const data = await response.json();
-      setStudents(data);
+      setStudents(data.students || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching students:', err);
+      setStudents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const createStudent = async (data: CreateStudentData): Promise<StudentWithRelations | null> => {
-    try {
-      setError(null);
-      
-      // Convert and validate subject progress data
-      const processedData = {
-        ...data,
-        subjectProgress: data.subjectProgress?.map(sp => {
-          const enumSubject = subjectCurriculumToEnum(sp.subject);
-          if (!isValidSubjectEnum(enumSubject)) {
-            console.warn(`Invalid subject: ${sp.subject}, skipping`);
-            return null;
-          }
+  const createStudent = async (studentData: CreateStudentData): Promise<StudentWithRelations> => {
+    const response = await fetch('/api/students', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...studentData,
+        // Convert initialProgress to the expected format for the API
+        initialProgress: studentData.initialProgress?.map(ip => {
+          const enumSubject = subjectCurriculumToEnum(ip.subject);
           return {
-            ...sp,
-            subject: enumSubject
+            subject: enumSubject,
+            lastCompletedNodeId: ip.lastCompletedNodeId,
           };
-        }).filter(Boolean) || []
-      };
-      
-      const response = await fetch('/api/students', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(processedData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create student');
-      }
-      
-      const newStudent = await response.json();
-      setStudents(prev => [newStudent, ...prev]);
-      return newStudent;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error creating student:', err);
-      return null;
+        }),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create student');
     }
+
+    const data = await response.json();
+    
+    // Update local state
+    setStudents(prevStudents => [...prevStudents, data.student]);
+    
+    return data.student;
   };
 
-  const updateStudent = async (id: string, data: UpdateStudentData): Promise<StudentWithRelations | null> => {
-    try {
-      setError(null);
-      
-      const response = await fetch(`/api/students/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update student');
-      }
-      
-      const updatedStudent = await response.json();
-      setStudents(prev =>
-        prev.map(student => (student.id === id ? updatedStudent : student))
-      );
-      return updatedStudent;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error updating student:', err);
-      return null;
+  const updateStudent = async (id: string, updates: Partial<CreateStudentData>): Promise<StudentWithRelations> => {
+    const response = await fetch(`/api/students/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to update student');
     }
+
+    const data = await response.json();
+    
+    // Update local state
+    setStudents(prevStudents =>
+      prevStudents.map(student =>
+        student.id === id ? data.student : student
+      )
+    );
+    
+    return data.student;
   };
 
-  const deleteStudent = async (id: string): Promise<boolean> => {
-    try {
-      setError(null);
-      
-      const response = await fetch(`/api/students/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete student');
-      }
-      
-      setStudents(prev => prev.filter(student => student.id !== id));
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error deleting student:', err);
-      return false;
+  const deleteStudent = async (id: string): Promise<void> => {
+    const response = await fetch(`/api/students/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete student');
     }
+    
+    // Update local state
+    setStudents(prevStudents =>
+      prevStudents.filter(student => student.id !== id)
+    );
   };
 
   const refreshStudents = async () => {

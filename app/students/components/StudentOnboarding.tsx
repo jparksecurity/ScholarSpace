@@ -30,9 +30,9 @@ interface StudentOnboardingProps {
 }
 
 interface OnboardingData {
-  subjectProgress: {
+  initialProgress: {
     subject: string;
-    currentNodeId: string | null;
+    lastCompletedNodeId: string | null; // What they've completed so far
   }[];
 }
 
@@ -58,8 +58,8 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
   const progressPercentage = totalSteps > 0 ? ((currentSubjectIndex + 1) / totalSteps) * 100 : 0;
   const currentSubject = subjects[currentSubjectIndex];
 
-  const handleProgressChange = (subject: string, nodeId: string | null) => {
-    setSubjectProgress(prev => ({ ...prev, [subject]: nodeId }));
+  const handleProgressChange = (subject: string, lastCompletedNodeId: string | null) => {
+    setSubjectProgress(prev => ({ ...prev, [subject]: lastCompletedNodeId }));
   };
 
   const handleNext = () => {
@@ -78,12 +78,12 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
 
   const handleComplete = () => {
     // Convert curriculum format subjects to enum format for database storage
-    const subjectProgressData = Object.entries(subjectProgress).map(([subject, currentNodeId]) => ({
+    const initialProgressData = Object.entries(subjectProgress).map(([subject, lastCompletedNodeId]) => ({
       subject: subjectCurriculumToEnum(subject), // Convert to enum format
-      currentNodeId,
+      lastCompletedNodeId,
     }));
 
-    onComplete({ subjectProgress: subjectProgressData });
+    onComplete({ initialProgress: initialProgressData });
   };
 
   const canProceed = () => {
@@ -114,7 +114,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
                   For each subject, we&apos;ll show you the learning sequence from basic to advanced topics. 
-                  Simply tell us what unit your student should work on next in that subject. 
+                  Simply tell us the last unit your student has successfully completed in that subject. 
                   This helps us understand exactly where they are in their learning journey.
                 </p>
                 
@@ -144,7 +144,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
                     What We&apos;re Looking For
                   </h4>
                   <p className="text-sm text-blue-800">
-                    Select the unit your student should <strong>work on next</strong>. 
+                    Select the last unit your student has <strong>successfully completed</strong>. 
                     If they haven&apos;t started a subject yet, that&apos;s perfectly fine - just leave it unselected 
                     and we&apos;ll start them at the beginning.
                   </p>
@@ -191,10 +191,10 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
         <div className="space-y-6">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">
-              What unit should your student work on next in {currentSubject.subjectName}?
+              What is the last unit your student completed in {currentSubject.subjectName}?
             </h3>
             <p className="text-muted-foreground">
-              Select the unit they should focus on next in their learning journey. 
+              Select the most recent unit they have successfully finished and mastered. 
               If they haven&apos;t started this subject, leave it unselected.
             </p>
           </div>
@@ -211,7 +211,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
                   className="flex items-center gap-2 cursor-pointer text-sm font-medium"
                 >
                   <Play className="h-4 w-4 text-gray-500" />
-                  Haven&apos;t started {currentSubject.subjectName} yet
+                  Hasn&apos;t completed any units in {currentSubject.subjectName} yet
                 </Label>
               </div>
             </div>

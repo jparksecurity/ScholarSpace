@@ -1,4 +1,5 @@
 import curriculumData from '@/curriculum_prerequisite_network.json';
+import { ProgressLogWithNode } from '@/hooks/useStudents';
 
 export interface CurriculumNode {
   id: string;
@@ -238,4 +239,83 @@ export function getSubjectProgressPercentage(currentNodeId: string | null, subje
   
   // Progress is the number of nodes before the current node
   return Math.round((currentNodeIndex / allSubjectNodes.length) * 100);
+}
+
+// NEW: Helper functions for ProgressLog-based progress tracking
+
+interface SubjectProgressSummary {
+  subject: string;
+  subjectName: string;
+  completedCount: number;
+  totalCount: number;
+  progressPercentage: number;
+  currentNodeId: string | null;
+  latestActivity: Date | null;
+}
+
+export function getCompletedNodesBySubject(progressLog: ProgressLogWithNode[], subject: string): string[] {
+  return progressLog
+    .filter(log => log.action === 'COMPLETED' && log.node.subject === subject.toLowerCase())
+    .map(log => log.nodeId);
+}
+
+export function getLatestNodeInSubject(progressLog: ProgressLogWithNode[], subject: string): string | null {
+  const subjectLogs = progressLog
+    .filter(log => log.node.subject === subject.toLowerCase())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+  if (subjectLogs.length === 0) return null;
+  
+  // Find the latest COMPLETED node
+  const latestCompleted = subjectLogs.find(log => log.action === 'COMPLETED');
+  return latestCompleted?.nodeId || null;
+}
+
+export function calculateSubjectProgressFromLogs(progressLog: ProgressLogWithNode[], subject: string): number {
+  const completedNodes = getCompletedNodesBySubject(progressLog, subject);
+  const allSubjectNodes = getNodesBySubject(subject);
+  
+  if (allSubjectNodes.length === 0) return 0;
+  
+  return Math.round((completedNodes.length / allSubjectNodes.length) * 100);
+}
+
+export function getCurrentNodeForSubject(progressLog: ProgressLogWithNode[], subject: string): string | null {
+  const latestCompleted = getLatestNodeInSubject(progressLog, subject);
+  
+  if (!latestCompleted) {
+    // If no completed nodes, return the first node in the subject
+    const subjectNodes = getNodesBySubject(subject);
+    return subjectNodes.length > 0 ? subjectNodes[0].id : null;
+  }
+  
+  // Get the next node after the latest completed one
+  const nextNode = getNextNode(latestCompleted);
+  return nextNode?.id || latestCompleted; // If no next node, stay on the last completed one
+}
+
+export function getSubjectProgressSummary(progressLog: ProgressLogWithNode[]): Record<string, SubjectProgressSummary> {
+  const subjects = getUniqueSubjects();
+  
+  return subjects.reduce((acc, subject) => {
+    const enumSubject = subjectCurriculumToEnum(subject);
+    acc[subject] = {
+      subject: enumSubject,
+      subjectName: getSubjectDisplayName(subject),
+      completedCount: getCompletedNodesBySubject(progressLog, subject).length,
+      totalCount: getNodesBySubject(subject).length,
+      progressPercentage: calculateSubjectProgressFromLogs(progressLog, subject),
+      currentNodeId: getCurrentNodeForSubject(progressLog, subject),
+      latestActivity: getLatestActivityInSubject(progressLog, subject)
+    };
+    return acc;
+  }, {} as Record<string, SubjectProgressSummary>);
+}
+
+export function getLatestActivityInSubject(progressLog: ProgressLogWithNode[], subject: string): Date | null {
+  const subjectLogs = progressLog
+    .filter(log => log.node.subject === subject.toLowerCase())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+  return subjectLogs.length > 0 ? new Date(subjectLogs[0].createdAt) : null;
 } 

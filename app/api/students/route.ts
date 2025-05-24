@@ -1,42 +1,57 @@
 import { getAuth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Subject } from '@/lib/generated/prisma';
-import { subjectCurriculumToEnum, isValidSubjectEnum } from '@/lib/curriculum';
+import { PrismaClient } from '@/lib/generated/prisma';
+import { getNodesBeforeInSubject, getNodesBySubject, getNextNode } from '@/lib/curriculum';
 
-interface SubjectProgressData {
+interface InitialProgressData {
   subject: string;
-  lastCompletedNodeId: string | null;
+  lastCompletedNodeId: string | null; // What they've completed so far (null = haven't started)
 }
 
-const prisma = new PrismaClient();
+// Helper function to get next node ID
+function getNextNodeId(nodeId: string): string | null {
+  const nextNode = getNextNode(nodeId);
+  return nextNode?.id || null;
+}
 
 // GET /api/students - Get all students for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = getAuth(request);
+    const { userId } = await getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const prisma = new PrismaClient();
+    
     const students = await prisma.student.findMany({
       where: {
         parentUserId: userId,
         isActive: true,
       },
       include: {
-        subjectProgress: true,
+        progressLog: {
+          include: {
+            node: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    return NextResponse.json(students);
+    await prisma.$disconnect();
+
+    return NextResponse.json({ students });
   } catch (error) {
     console.error('Error fetching students:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch students' },
       { status: 500 }
     );
   }
@@ -45,30 +60,23 @@ export async function GET(request: NextRequest) {
 // POST /api/students - Create a new student
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = getAuth(request);
+    const { userId } = await getAuth(request);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const {
-      firstName,
-      lastName,
-      dateOfBirth,
+    const data = await request.json();
+    const { 
+      firstName, 
+      lastName, 
+      dateOfBirth, 
       avatar,
-      subjectProgress = [],
-    } = body;
+      initialProgress = [],
+    } = data;
 
-    // Validate required fields
-    if (!firstName || !lastName || !dateOfBirth) {
-      return NextResponse.json(
-        { error: 'First name, last name, and date of birth are required' },
-        { status: 400 }
-      );
-    }
+    const prisma = new PrismaClient();
 
-    // Create student with subject progress in a transaction
     const student = await prisma.$transaction(async (tx) => {
       // Create the student
       const newStudent = await tx.student.create({
@@ -81,11 +89,11 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create subject progress entries if provided
-      if (subjectProgress.length > 0) {
-        // Validate that the currentNodeIds actually exist
-        const nodeIds = subjectProgress
-          .map((sp: SubjectProgressData) => sp.lastCompletedNodeId)
+      // Create initial progress log entries if provided
+      if (initialProgress.length > 0) {
+        // Validate that the nodeIds actually exist
+        const nodeIds = initialProgress
+          .map((ip: InitialProgressData) => ip.lastCompletedNodeId)
           .filter(Boolean) as string[];
         
         if (nodeIds.length > 0) {
@@ -95,60 +103,92 @@ export async function POST(request: NextRequest) {
                 in: nodeIds,
               },
             },
-            select: { id: true },
+            select: { id: true, subject: true },
           });
           
           const existingNodeIds = new Set(existingNodes.map(node => node.id));
           
-          // Create subject progress records with proper enum conversion
-          const validSubjectProgress = subjectProgress
-            .map((sp: SubjectProgressData) => {
-              // Convert subject to enum format and validate
-              const enumSubject = subjectCurriculumToEnum(sp.subject);
-              if (!isValidSubjectEnum(enumSubject)) {
-                console.warn(`Invalid subject: ${sp.subject}, skipping`);
-                return null;
-              }
+          // For each subject where student has completed something
+          const allProgressEntries: Array<{
+            studentId: string;
+            nodeId: string;
+            action: 'STARTED' | 'COMPLETED';
+            createdAt: Date;
+          }> = [];
 
-              // If lastCompletedNodeId is null or doesn't exist, set currentNodeId to null
-              const currentNodeId = sp.lastCompletedNodeId && existingNodeIds.has(sp.lastCompletedNodeId) 
-                ? sp.lastCompletedNodeId 
-                : null;
+          for (const ip of initialProgress) {
+            if (ip.lastCompletedNodeId && existingNodeIds.has(ip.lastCompletedNodeId)) {
+              const subjectName = ip.subject.toLowerCase();
               
-              return {
-                studentId: newStudent.id,
-                subject: enumSubject as Subject,
-                currentNodeId,
-              };
-            })
-            .filter(<T>(item: T | null): item is T => item !== null);
+              // Get all nodes that come before and include the last completed node
+              const lastCompletedNode = existingNodes.find(n => n.id === ip.lastCompletedNodeId);
+              if (lastCompletedNode && lastCompletedNode.subject === subjectName) {
+                // Get all completed nodes (including the last completed one)
+                const completedNodes = getNodesBeforeInSubject(ip.lastCompletedNodeId, subjectName);
+                completedNodes.push({ id: ip.lastCompletedNodeId, subject: lastCompletedNode.subject }); // Add the last completed node itself
+                
+                // Create COMPLETED entries for all completed units with staggered timestamps
+                completedNodes.forEach((node, index) => {
+                  const completedAt = new Date();
+                  completedAt.setMinutes(completedAt.getMinutes() - (completedNodes.length - index) * 5);
+                  
+                  allProgressEntries.push({
+                    studentId: newStudent.id,
+                    nodeId: node.id,
+                    action: 'COMPLETED',
+                    createdAt: completedAt,
+                  });
+                });
+                
+                // Find and create STARTED entry for the next unit
+                const nextNodeId = getNextNodeId(ip.lastCompletedNodeId);
+                if (nextNodeId) {
+                  allProgressEntries.push({
+                    studentId: newStudent.id,
+                    nodeId: nextNodeId,
+                    action: 'STARTED',
+                    createdAt: new Date(),
+                  });
+                }
+              }
+            } else if (!ip.lastCompletedNodeId) {
+              // Student hasn't started this subject yet - create STARTED entry for first unit
+              const subjectNodes = getNodesBySubject(ip.subject.toLowerCase());
+              if (subjectNodes.length > 0) {
+                allProgressEntries.push({
+                  studentId: newStudent.id,
+                  nodeId: subjectNodes[0].id,
+                  action: 'STARTED',
+                  createdAt: new Date(),
+                });
+              }
+            }
+          }
 
-          if (validSubjectProgress.length > 0) {
-            await tx.subjectProgress.createMany({
-              data: validSubjectProgress,
+          // Bulk create all progress entries
+          if (allProgressEntries.length > 0) {
+            await tx.progressLog.createMany({
+              data: allProgressEntries,
             });
           }
         } else {
-          // Create subject progress records with no completed nodes
-          const validSubjectProgress = subjectProgress
-            .map((sp: SubjectProgressData) => {
-              const enumSubject = subjectCurriculumToEnum(sp.subject);
-              if (!isValidSubjectEnum(enumSubject)) {
-                console.warn(`Invalid subject: ${sp.subject}, skipping`);
-                return null;
-              }
-
-              return {
+          // No completed nodes, but create STARTED entries for subjects they want to begin
+          const startedEntries = initialProgress
+            .filter((ip: InitialProgressData) => !ip.lastCompletedNodeId)
+            .map((ip: InitialProgressData) => {
+              const subjectNodes = getNodesBySubject(ip.subject.toLowerCase());
+              return subjectNodes.length > 0 ? {
                 studentId: newStudent.id,
-                subject: enumSubject as Subject,
-                currentNodeId: null,
-              };
+                nodeId: subjectNodes[0].id,
+                action: 'STARTED' as const,
+                createdAt: new Date(),
+              } : null;
             })
-            .filter(<T>(item: T | null): item is T => item !== null);
+            .filter(Boolean);
 
-          if (validSubjectProgress.length > 0) {
-            await tx.subjectProgress.createMany({
-              data: validSubjectProgress,
+          if (startedEntries.length > 0) {
+            await tx.progressLog.createMany({
+              data: startedEntries,
             });
           }
         }
@@ -161,15 +201,24 @@ export async function POST(request: NextRequest) {
     const completeStudent = await prisma.student.findUnique({
       where: { id: student.id },
       include: {
-        subjectProgress: true,
+        progressLog: {
+          include: {
+            node: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
-    return NextResponse.json(completeStudent, { status: 201 });
+    await prisma.$disconnect();
+
+    return NextResponse.json({ student: completeStudent });
   } catch (error) {
     console.error('Error creating student:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to create student' },
       { status: 500 }
     );
   }

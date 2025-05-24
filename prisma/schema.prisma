@@ -26,8 +26,8 @@ model Student {
   updatedAt         DateTime              @updatedAt @map("updated_at")
 
   // Relationships
-  subjectProgress   SubjectProgress[]
   learningPlans     LearningPlan[]
+  progressLog       ProgressLog[]
 
   @@index([parentUserId])
   @@map("students")
@@ -41,22 +41,28 @@ enum Subject {
   HUMANITIES
 }
 
-// Tracks the current position for each subject
-model SubjectProgress {
-  id                    String          @id @default(cuid())
-  studentId             String          @map("student_id")
-  subject               Subject         // Now using enum for type safety
-  currentNodeId         String?         @map("current_node_id") // what they should work on next
-  updatedAt             DateTime        @updatedAt @map("updated_at")
-  createdAt             DateTime        @default(now()) @map("created_at")
+// Simple progress action types
+enum ProgressAction {
+  STARTED    // Student started working on a node
+  COMPLETED  // Student completed the node
+}
+
+// Combined progress tracking - both current state and historical
+model ProgressLog {
+  id                String          @id @default(cuid())
+  studentId         String          @map("student_id")
+  nodeId            String          @map("node_id")
+  action            ProgressAction  // STARTED or COMPLETED
+  createdAt         DateTime        @default(now()) @map("created_at")
 
   // Relations
-  student               Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  currentNode           CurriculumNode? @relation("CurrentNode", fields: [currentNodeId], references: [id])
+  student           Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  node              CurriculumNode  @relation("ProgressLog", fields: [nodeId], references: [id])
 
-  @@unique([studentId, subject])
   @@index([studentId])
-  @@map("subject_progress")
+  @@index([studentId, createdAt])
+  @@index([nodeId])
+  @@map("progress_log")
 }
 
 model CurriculumNode {
@@ -73,9 +79,7 @@ model CurriculumNode {
   // Relationships
   outgoingEdges CurriculumEdge[] @relation("FromNode")
   incomingEdges CurriculumEdge[] @relation("ToNode")
-  
-  // Subject progress relationships
-  currentFor       SubjectProgress[] @relation("CurrentNode")
+  progressLog   ProgressLog[]    @relation("ProgressLog")
 
   @@map("curriculum_nodes")
 }

@@ -12,7 +12,14 @@ async function getStudents(userId: string) {
       isActive: true,
     },
     include: {
-      subjectProgress: true,
+      progressLog: {
+        include: {
+          node: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
     },
     orderBy: {
       createdAt: 'desc',
@@ -28,6 +35,7 @@ export default async function StudentsPage() {
   }
 
   const students = await getStudents(userId);
+  const isFirstTimeUser = students.length === 0;
 
-  return <StudentsClient initialStudents={students} />;
+  return <StudentsClient initialStudents={students} isFirstTimeUser={isFirstTimeUser} />;
 } 

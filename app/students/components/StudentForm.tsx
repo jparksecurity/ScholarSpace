@@ -18,9 +18,9 @@ import {
 import { calculateAge } from '@/lib/utils';
 
 interface OnboardingData {
-  subjectProgress?: Array<{
+  initialProgress?: Array<{
     subject: string;
-    currentNodeId: string | null;
+    nodeId: string | null;
   }>;
 }
 
@@ -74,7 +74,7 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
         avatar: formData.avatar || undefined,
         // Include onboarding progress data for new students
         ...(onboardingData && !student ? { 
-          subjectProgress: onboardingData.subjectProgress 
+          initialProgress: onboardingData.initialProgress 
         } : {}),
       };
 

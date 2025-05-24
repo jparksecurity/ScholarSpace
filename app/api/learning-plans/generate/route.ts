@@ -4,6 +4,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { PrismaClient } from '@/lib/generated/prisma';
 import curriculumData from '@/curriculum_prerequisite_network.json';
+import { getSubjectProgressSummary } from '@/lib/curriculum';
 
 const prisma = new PrismaClient();
 
@@ -23,9 +24,12 @@ export async function POST(request: NextRequest) {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
-        subjectProgress: {
+        progressLog: {
           include: {
-            currentNode: true
+            node: true
+          },
+          orderBy: {
+            createdAt: 'desc'
           }
         }
       }
@@ -40,10 +44,21 @@ export async function POST(request: NextRequest) {
       ? Math.floor((Date.now() - student.dateOfBirth.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       : null;
 
-    // Build context about student's current progress
-    const currentProgress = student.subjectProgress.map(sp => ({
-      subject: sp.subject,
-      currentNodeId: sp.currentNode?.id
+    // Build context about student's current progress using ProgressLog
+    const progressSummary = getSubjectProgressSummary(student.progressLog || []);
+    const currentProgress = Object.entries(progressSummary).map(([, data]: [string, {
+      subject: string;
+      subjectName: string;
+      completedCount: number;
+      totalCount: number;
+      progressPercentage: number;
+      currentNodeId: string | null;
+      latestActivity: Date | null;
+    }]) => ({
+      subject: data.subject,
+      currentNodeId: data.currentNodeId,
+      completedCount: data.completedCount,
+      progressPercentage: data.progressPercentage
     }));
 
     // Create simplified system prompt

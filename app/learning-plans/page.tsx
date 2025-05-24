@@ -41,10 +41,12 @@ export default function LearningPlansPage() {
       const response = await fetch('/api/students');
       if (response.ok) {
         const data = await response.json();
-        setStudents(data || []);
+        // Extract students from the response object
+        const studentsList = data.students || [];
+        setStudents(studentsList);
         // Load plans for all students
-        if (data && data.length > 0) {
-          await loadPlansForAllStudents(data);
+        if (studentsList && studentsList.length > 0) {
+          await loadPlansForAllStudents(studentsList);
         }
       }
     } catch (error) {
