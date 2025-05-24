@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit, Trash2, User, Calendar, TrendingUp, Eye, BookOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Calendar, TrendingUp, Eye, BookOpen, Settings } from 'lucide-react';
 import { StudentWithRelations } from '@/hooks/useStudents';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,7 @@ import {
   getNodeById, 
   getCoursesBySubject, 
 } from '@/lib/curriculum';
+import { useRouter } from 'next/navigation';
 
 interface StudentsClientProps {
   initialStudents: StudentWithRelations[];
@@ -47,6 +48,7 @@ interface OnboardingData {
 }
 
 export function StudentsClient({ initialStudents }: StudentsClientProps) {
+  const router = useRouter();
   const [students, setStudents] = useState(initialStudents);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -66,6 +68,10 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
     setEditingStudent(student);
     setOnboardingData(null);
     setShowForm(true);
+  };
+
+  const handleUpdateProgress = (student: StudentWithRelations) => {
+    router.push(`/students/${student.id}/progress`);
   };
 
   const handleOnboardingComplete = (data: OnboardingData) => {
@@ -204,6 +210,14 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleUpdateProgress(student)}
+                      title="Update Progress"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setDeletingStudent(student)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -253,6 +267,19 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                         Click to view detailed progress
                       </div>
                     )}
+                  </div>
+                  
+                  {/* Update Progress Button */}
+                  <div className="pt-3 border-t">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => handleUpdateProgress(student)}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Update Progress
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -353,9 +380,8 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                             <CardTitle className="text-lg">{data.name}</CardTitle>
                             <CardDescription>
                               {currentNode 
-                                ? `Currently working on: ${currentNode.unit_title}` 
-                                : 'Not started yet'
-                              }
+                                ? `Currently working on: ${currentNode.unitTitle}`
+                                : 'No current progress'}
                             </CardDescription>
                           </div>
                         </div>
@@ -382,9 +408,9 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                           <div className="text-sm space-y-1 pt-3 border-t">
                             <div className="font-medium">Current Unit Details:</div>
                             <div className="text-muted-foreground">
-                              <div>Course: {currentNode.course_title}</div>
-                              <div>Grade Level: {currentNode.grade_level}</div>
-                              <div>Unit: {currentNode.unit_title}</div>
+                              <div>Course: {currentNode.courseTitle}</div>
+                              <div>Grade Level: {currentNode.gradeLevel}</div>
+                              <div>Unit: {currentNode.unitTitle}</div>
                             </div>
                           </div>
                         )}

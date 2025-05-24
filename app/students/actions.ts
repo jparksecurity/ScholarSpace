@@ -84,7 +84,7 @@ export async function createStudentAction(data: CreateStudentData) {
             // Get all nodes that come before and including the last completed node
             const completedNodes = getNodesBeforeInSubject(ip.lastCompletedNodeId, subjectName);
             
-            // Add the last completed node itself
+            // Add the last completed node itself to the list
             const lastCompletedNode = getNodeById(ip.lastCompletedNodeId);
             if (lastCompletedNode) {
               completedNodes.push(lastCompletedNode);
@@ -228,11 +228,117 @@ export async function deleteStudentAction(id: string) {
     throw new Error('Student not found');
   }
 
-  // Soft delete the student (progress log entries are kept for historical tracking)
-  await prisma.student.update({
+  // Delete the student (cascading delete will handle progress logs)
+  await prisma.student.delete({
     where: { id },
-    data: { isActive: false },
   });
 
   revalidatePath('/students');
+}
+
+// Progress update actions
+export async function updateStudentProgressAction(
+  studentId: string,
+  nodeId: string,
+  action: 'STARTED' | 'COMPLETED'
+) {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+
+  // Verify the student belongs to the authenticated user
+  const student = await prisma.student.findUnique({
+    where: {
+      id: studentId,
+      parentUserId: userId,
+    },
+  });
+
+  if (!student) {
+    throw new Error('Student not found or unauthorized');
+  }
+
+  // Verify the node exists
+  const node = await prisma.curriculumNode.findUnique({
+    where: { id: nodeId },
+  });
+
+  if (!node) {
+    throw new Error('Curriculum node not found');
+  }
+
+  // Check if there's already a recent entry for this node and action
+  const recentEntry = await prisma.progressLog.findFirst({
+    where: {
+      studentId,
+      nodeId,
+      action,
+      createdAt: {
+        gte: new Date(Date.now() - 60 * 1000), // Within the last minute
+      },
+    },
+  });
+
+  if (recentEntry) {
+    throw new Error('Progress already updated recently for this unit');
+  }
+
+  // Create the progress log entry
+  const progressEntry = await prisma.progressLog.create({
+    data: {
+      studentId,
+      nodeId,
+      action,
+    },
+    include: {
+      node: true,
+    },
+  });
+
+  revalidatePath('/students');
+  revalidatePath(`/students/${studentId}/progress`);
+  
+  return progressEntry;
+}
+
+export async function removeStudentProgressAction(
+  studentId: string,
+  progressLogId: string
+) {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+
+  // Verify the student belongs to the authenticated user and the progress log exists
+  const progressLog = await prisma.progressLog.findFirst({
+    where: {
+      id: progressLogId,
+      student: {
+        parentUserId: userId,
+      },
+    },
+    include: {
+      student: true,
+    },
+  });
+
+  if (!progressLog) {
+    throw new Error('Progress log not found or unauthorized');
+  }
+
+  if (progressLog.student.id !== studentId) {
+    throw new Error('Progress log does not belong to the specified student');
+  }
+
+  // Delete the progress log entry
+  await prisma.progressLog.delete({
+    where: { id: progressLogId },
+  });
+
+  revalidatePath('/students');
+  revalidatePath(`/students/${studentId}/progress`);
 } 

@@ -3,11 +3,11 @@ import { ProgressLogWithNode } from '@/hooks/useStudents';
 
 export interface CurriculumNode {
   id: string;
-  unit_title: string;
-  unit_number: number;
-  course_title: string;
-  course_path: string;
-  grade_level: string;
+  unitTitle: string;
+  unitNumber: number;
+  courseTitle: string;
+  coursePath: string;
+  gradeLevel: string;
   subject: string;
 }
 
@@ -26,15 +26,40 @@ export interface CourseInfo {
   units: CurriculumNode[];
 }
 
+// Type for the raw JSON data (with snake_case properties)
+interface RawCurriculumNode {
+  id: string;
+  unit_title: string;
+  unit_number: number;
+  course_title: string;
+  course_path: string;
+  grade_level: string;
+  subject: string;
+}
+
 // Type the imported JSON data
-const curriculum = curriculumData as {
-  nodes: CurriculumNode[];
+const rawCurriculum = curriculumData as {
+  nodes: RawCurriculumNode[];
   edges: Array<{
     from: string;
     to: string;
     relationship_type: string;
     description: string;
   }>;
+};
+
+// Transform raw data to match our interface
+const curriculum = {
+  nodes: rawCurriculum.nodes.map(node => ({
+    id: node.id,
+    unitTitle: node.unit_title,
+    unitNumber: node.unit_number,
+    courseTitle: node.course_title,
+    coursePath: node.course_path,
+    gradeLevel: node.grade_level,
+    subject: node.subject,
+  })),
+  edges: rawCurriculum.edges,
 };
 
 // Utility functions for handling enum/curriculum mapping
@@ -107,7 +132,7 @@ export function getCoursesBySubject(subject: string): CourseInfo[] {
   
   // Group by course path
   const courseGroups = subjectNodes.reduce((acc, node) => {
-    const key = node.course_path;
+    const key = node.coursePath;
     if (!acc[key]) {
       acc[key] = [];
     }
@@ -117,13 +142,13 @@ export function getCoursesBySubject(subject: string): CourseInfo[] {
 
   return Object.entries(courseGroups).map(([coursePath, nodes]) => {
     // Sort units by unit number
-    const sortedUnits = nodes.sort((a, b) => a.unit_number - b.unit_number);
+    const sortedUnits = nodes.sort((a, b) => a.unitNumber - b.unitNumber);
     const firstUnit = sortedUnits[0];
     
     return {
       id: coursePath,
-      title: firstUnit.course_title,
-      gradeLevel: firstUnit.grade_level,
+      title: firstUnit.courseTitle,
+      gradeLevel: firstUnit.gradeLevel,
       path: coursePath,
       units: sortedUnits,
     };
@@ -206,15 +231,17 @@ export function getPreviousNode(nodeId: string): CurriculumNode | null {
 export function getNodesBeforeInSubject(nodeId: string, subject: string): CurriculumNode[] {
   const completedNodes: CurriculumNode[] = [];
   
-  // Traverse backwards from the given node
-  let currentNode = getNodeById(nodeId);
+  // Start from the node BEFORE the given node
+  const startingNode = getNodeById(nodeId);
+  if (!startingNode) return [];
+  
+  let currentNode = getPreviousNode(startingNode.id);
   
   while (currentNode) {
-    completedNodes.unshift(currentNode);
-    const prevNode = getPreviousNode(currentNode.id);
-    // Normalize subject for comparison
-    if (prevNode && prevNode.subject === subject.toLowerCase()) {
-      currentNode = prevNode;
+    // Check if this node is in the same subject
+    if (currentNode.subject === subject.toLowerCase()) {
+      completedNodes.unshift(currentNode); // Add at beginning to maintain order
+      currentNode = getPreviousNode(currentNode.id);
     } else {
       break;
     }
@@ -281,17 +308,29 @@ export function calculateSubjectProgressFromLogs(progressLog: ProgressLogWithNod
 }
 
 export function getCurrentNodeForSubject(progressLog: ProgressLogWithNode[], subject: string): string | null {
-  const latestCompleted = getLatestNodeInSubject(progressLog, subject);
+  const subjectLogs = progressLog
+    .filter(log => log.node.subject === subject.toLowerCase())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+  if (subjectLogs.length === 0) return null;
   
-  if (!latestCompleted) {
-    // If no completed nodes, return the first node in the subject
-    const subjectNodes = getNodesBySubject(subject);
-    return subjectNodes.length > 0 ? subjectNodes[0].id : null;
+  // First, look for the latest COMPLETED node
+  const latestCompleted = subjectLogs.find(log => log.action === 'COMPLETED');
+  
+  if (latestCompleted) {
+    // Get the next node after the latest completed one
+    const nextNode = getNextNode(latestCompleted.nodeId);
+    return nextNode?.id || latestCompleted.nodeId; // If no next node, stay on the last completed one
   }
   
-  // Get the next node after the latest completed one
-  const nextNode = getNextNode(latestCompleted);
-  return nextNode?.id || latestCompleted; // If no next node, stay on the last completed one
+  // If no completed nodes, look for the latest STARTED node
+  const latestStarted = subjectLogs.find(log => log.action === 'STARTED');
+  if (latestStarted) {
+    return latestStarted.nodeId;
+  }
+  
+  // If no progress at all, return null
+  return null;
 }
 
 export function getSubjectProgressSummary(progressLog: ProgressLogWithNode[]): Record<string, SubjectProgressSummary> {
@@ -299,13 +338,17 @@ export function getSubjectProgressSummary(progressLog: ProgressLogWithNode[]): R
   
   return subjects.reduce((acc, subject) => {
     const enumSubject = subjectCurriculumToEnum(subject);
+    const completedCount = getCompletedNodesBySubject(progressLog, subject).length;
+    const totalCount = getNodesBySubject(subject).length;
+    const currentNodeId = getCurrentNodeForSubject(progressLog, subject);
+    
     acc[subject] = {
       subject: enumSubject,
       subjectName: getSubjectDisplayName(subject),
-      completedCount: getCompletedNodesBySubject(progressLog, subject).length,
-      totalCount: getNodesBySubject(subject).length,
-      progressPercentage: calculateSubjectProgressFromLogs(progressLog, subject),
-      currentNodeId: getCurrentNodeForSubject(progressLog, subject),
+      completedCount,
+      totalCount,
+      progressPercentage: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
+      currentNodeId,
       latestActivity: getLatestActivityInSubject(progressLog, subject)
     };
     return acc;
@@ -541,4 +584,47 @@ export function getCurriculumContext(progressLog: ProgressLogWithNode[]): Curric
     availableNodes: curriculum.nodes,
     edges: curriculum.edges
   };
+}
+
+/**
+ * Get the first starting node for a subject (when no progress exists)
+ */
+export function getFirstNodeForSubject(subject: string): CurriculumNode | null {
+  // Find nodes that are starting points (have no incoming sequential edges within the same subject)
+  const subjectNodes = getNodesBySubject(subject);
+  
+  if (subjectNodes.length === 0) return null;
+  
+  // Find nodes with no incoming sequential edges from the same subject
+  const startingNodes = subjectNodes.filter(node => {
+    const incomingEdges = curriculum.edges.filter(edge => 
+      edge.to === node.id && edge.relationship_type === 'sequential'
+    );
+    
+    // Check if any incoming edges are from the same subject
+    const hasInSubjectPredecessor = incomingEdges.some(edge => {
+      const fromNode = getNodeById(edge.from);
+      return fromNode && fromNode.subject === subject;
+    });
+    
+    return !hasInSubjectPredecessor;
+  });
+  
+  if (startingNodes.length === 0) {
+    // Fallback: return the first node by course order and unit number
+    return subjectNodes.sort((a, b) => {
+      if (a.coursePath !== b.coursePath) {
+        return a.coursePath.localeCompare(b.coursePath);
+      }
+      return a.unitNumber - b.unitNumber;
+    })[0];
+  }
+  
+  // Return the first starting node (sorted by course and unit number)
+  return startingNodes.sort((a, b) => {
+    if (a.coursePath !== b.coursePath) {
+      return a.coursePath.localeCompare(b.coursePath);
+    }
+    return a.unitNumber - b.unitNumber;
+  })[0];
 } 

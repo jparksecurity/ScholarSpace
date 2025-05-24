@@ -99,9 +99,9 @@ ${JSON.stringify(Object.fromEntries(
     subject,
     nodes.map(node => ({
       id: node.id,
-      unitTitle: node.unit_title,
-      courseTitle: node.course_title,
-      gradeLevel: node.grade_level
+      unitTitle: node.unitTitle,
+      courseTitle: node.courseTitle,
+      gradeLevel: node.gradeLevel
     }))
   ])
 ), null, 2)}

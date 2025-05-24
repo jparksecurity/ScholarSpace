@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -87,6 +88,7 @@ export default function RootLayout({
             </div>
           </header>
           <main>{children}</main>
+          <Toaster />
         </body>
       </html>
     </ClerkProvider>

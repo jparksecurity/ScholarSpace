@@ -242,8 +242,8 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
                             className="flex items-center gap-2 cursor-pointer text-sm flex-1"
                           >
                             <Circle className="h-3 w-3 text-blue-600" />
-                            <span className="font-medium">Unit {unit.unit_number}:</span>
-                            <span>{unit.unit_title}</span>
+                            <span className="font-medium">Unit {unit.unitNumber}:</span>
+                            <span>{unit.unitTitle}</span>
                           </Label>
                         </div>
                       ))}
