@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit, Trash2, User, Calendar, BookOpen, TrendingUp } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Calendar, TrendingUp } from 'lucide-react';
 import { StudentWithRelations } from '@/hooks/useStudents';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { formatAge } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,9 +18,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { StudentForm } from '@/app/dashboard/students/components/StudentForm';
-import { StudentOnboarding } from '@/app/dashboard/students/components/StudentOnboarding';
-import { deleteStudentAction } from '@/app/dashboard/students/actions';
+import { StudentForm } from './StudentForm';
+import { StudentOnboarding } from './StudentOnboarding';
+import { deleteStudentAction } from '../actions';
 
 interface StudentsClientProps {
   initialStudents: StudentWithRelations[];
@@ -141,7 +142,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                       </CardTitle>
                       <CardDescription className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Grade {student.gradeLevel}
+                        {formatAge(student.dateOfBirth)}
                       </CardDescription>
                     </div>
                   </div>
@@ -180,22 +181,9 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
                     />
                   </div>
 
-                  {student.enrollments.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {student.enrollments.map((enrollment, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          <BookOpen className="h-3 w-3 mr-1" />
-                          {enrollment.subject}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
 
-                  {student.bio && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {student.bio}
-                    </p>
-                  )}
+
+
                 </div>
               </CardContent>
             </Card>
@@ -207,7 +195,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
       {showForm && (
         <StudentForm
           student={editingStudent}
-          onboardingData={onboardingData}
+          onboardingData={onboardingData || undefined}
           onClose={() => {
             setShowForm(false);
             setEditingStudent(null);

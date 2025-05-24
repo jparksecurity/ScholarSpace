@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
-import { StudentsClient } from '@/app/dashboard/students/components/StudentsClient';
+import { StudentsClient } from '@/app/students/components/StudentsClient';
 
 async function getStudents(userId: string) {
   return await prisma.student.findMany({

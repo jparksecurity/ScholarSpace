@@ -20,9 +20,7 @@ model Student {
   firstName         String                @map("first_name")
   lastName          String                @map("last_name")
   dateOfBirth       DateTime?             @map("date_of_birth")
-  gradeLevel        String                @map("grade_level")
   avatar            String?               
-  bio               String?
   isActive          Boolean               @default(true) @map("is_active")
   createdAt         DateTime              @default(now()) @map("created_at")
   updatedAt         DateTime              @updatedAt @map("updated_at")

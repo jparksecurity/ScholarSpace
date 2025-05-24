@@ -64,10 +64,7 @@ export async function PUT(
       firstName,
       lastName,
       dateOfBirth,
-      gradeLevel,
       avatar,
-      bio,
-      subjects = [],
     } = body;
 
     // Verify student belongs to the authenticated user
@@ -91,30 +88,11 @@ export async function PUT(
           firstName,
           lastName,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-          gradeLevel,
           avatar,
-          bio,
         },
       });
 
-      // Update enrollments if subjects changed
-      if (subjects.length > 0) {
-        // Deactivate existing enrollments
-        await tx.studentEnrollment.updateMany({
-          where: { studentId: params.id },
-          data: { isActive: false },
-        });
 
-        // Create new enrollments
-        await tx.studentEnrollment.createMany({
-          data: subjects.map((subject: string) => ({
-            studentId: params.id,
-            subject,
-            gradeLevel,
-            startDate: new Date(),
-          })),
-        });
-      }
     });
 
     // Fetch the complete updated student data

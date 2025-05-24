@@ -3,15 +3,13 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { ProgressStatus } from '@/lib/generated/prisma';
 
 export interface CreateStudentData {
   firstName: string;
   lastName: string;
   dateOfBirth?: string;
-  gradeLevel: string;
   avatar?: string;
-  bio?: string;
-  subjects?: string[];
   currentProgress?: {
     nodeId: string;
     status?: string;
@@ -24,10 +22,7 @@ export interface UpdateStudentData {
   firstName?: string;
   lastName?: string;
   dateOfBirth?: string;
-  gradeLevel?: string;
   avatar?: string;
-  bio?: string;
-  subjects?: string[];
 }
 
 export async function createStudentAction(data: CreateStudentData) {
@@ -41,44 +36,29 @@ export async function createStudentAction(data: CreateStudentData) {
     firstName,
     lastName,
     dateOfBirth,
-    gradeLevel,
     avatar,
-    bio,
-    subjects = [],
     currentProgress = [],
   } = data;
 
   // Validate required fields
-  if (!firstName || !lastName || !gradeLevel) {
-    throw new Error('First name, last name, and grade level are required');
+  if (!firstName || !lastName || !dateOfBirth) {
+    throw new Error('First name, last name, and date of birth are required');
   }
 
   // Create student with enrollments in a transaction
   const student = await prisma.$transaction(async (tx) => {
     // Create the student
     const newStudent = await tx.student.create({
-      data: {
+              data: {
         parentUserId: userId,
         firstName,
         lastName,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        gradeLevel,
         avatar,
-        bio,
       },
     });
 
-    // Create enrollments for each subject
-    if (subjects.length > 0) {
-      await tx.studentEnrollment.createMany({
-        data: subjects.map((subject: string) => ({
-          studentId: newStudent.id,
-          subject,
-          gradeLevel,
-          startDate: new Date(),
-        })),
-      });
-    }
+
 
     // Create initial progress entries if provided
     if (currentProgress.length > 0) {
@@ -102,7 +82,7 @@ export async function createStudentAction(data: CreateStudentData) {
           data: validProgress.map((progress) => ({
             studentId: newStudent.id,
             nodeId: progress.nodeId,
-            status: progress.status || 'NOT_STARTED',
+            status: (progress.status as ProgressStatus) || ProgressStatus.NOT_STARTED,
             score: progress.score,
             completedAt: progress.completedAt ? new Date(progress.completedAt) : null,
           })),
@@ -128,7 +108,7 @@ export async function createStudentAction(data: CreateStudentData) {
     },
   });
 
-  revalidatePath('/dashboard/students');
+  revalidatePath('/students');
   return completeStudent;
 }
 
@@ -143,10 +123,7 @@ export async function updateStudentAction(id: string, data: UpdateStudentData) {
     firstName,
     lastName,
     dateOfBirth,
-    gradeLevel,
     avatar,
-    bio,
-    subjects = [],
   } = data;
 
   // Verify student belongs to the authenticated user
@@ -170,30 +147,11 @@ export async function updateStudentAction(id: string, data: UpdateStudentData) {
         firstName,
         lastName,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        gradeLevel,
         avatar,
-        bio,
       },
     });
 
-    // Update enrollments if subjects changed
-    if (subjects.length > 0) {
-      // Deactivate existing enrollments
-      await tx.studentEnrollment.updateMany({
-        where: { studentId: id },
-        data: { isActive: false },
-      });
 
-      // Create new enrollments
-      await tx.studentEnrollment.createMany({
-        data: subjects.map((subject: string) => ({
-          studentId: id,
-          subject,
-          gradeLevel: gradeLevel || existingStudent.gradeLevel,
-          startDate: new Date(),
-        })),
-      });
-    }
   });
 
   // Fetch the complete updated student data
@@ -211,7 +169,7 @@ export async function updateStudentAction(id: string, data: UpdateStudentData) {
     },
   });
 
-  revalidatePath('/dashboard/students');
+  revalidatePath('/students');
   return completeStudent;
 }
 
@@ -250,6 +208,6 @@ export async function deleteStudentAction(id: string) {
     });
   });
 
-  revalidatePath('/dashboard/students');
+  revalidatePath('/students');
   return { success: true };
 } 

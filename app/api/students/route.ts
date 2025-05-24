@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/lib/generated/prisma';
+import { PrismaClient, ProgressStatus } from '@/lib/generated/prisma';
 
 interface ProgressData {
   nodeId: string;
@@ -64,17 +64,14 @@ export async function POST(request: NextRequest) {
       firstName,
       lastName,
       dateOfBirth,
-      gradeLevel,
       avatar,
-      bio,
-      subjects = [],
       currentProgress = [],
     } = body;
 
     // Validate required fields
-    if (!firstName || !lastName || !gradeLevel) {
+    if (!firstName || !lastName || !dateOfBirth) {
       return NextResponse.json(
-        { error: 'First name, last name, and grade level are required' },
+        { error: 'First name, last name, and date of birth are required' },
         { status: 400 }
       );
     }
@@ -88,23 +85,11 @@ export async function POST(request: NextRequest) {
           firstName,
           lastName,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-          gradeLevel,
           avatar,
-          bio,
         },
       });
 
-      // Create enrollments for each subject
-      if (subjects.length > 0) {
-        await tx.studentEnrollment.createMany({
-          data: subjects.map((subject: string) => ({
-            studentId: newStudent.id,
-            subject,
-            gradeLevel,
-            startDate: new Date(),
-          })),
-        });
-      }
+
 
       // Create initial progress entries if provided
       if (currentProgress.length > 0) {
@@ -130,7 +115,7 @@ export async function POST(request: NextRequest) {
             data: validProgress.map((progress: ProgressData) => ({
               studentId: newStudent.id,
               nodeId: progress.nodeId,
-              status: progress.status || 'NOT_STARTED',
+              status: (progress.status as ProgressStatus) || ProgressStatus.NOT_STARTED,
               score: progress.score,
               completedAt: progress.completedAt ? new Date(progress.completedAt) : null,
             })),

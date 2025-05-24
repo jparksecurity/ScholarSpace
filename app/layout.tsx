@@ -43,7 +43,7 @@ export default function RootLayout({
                     <Link href="/dashboard" className="text-gray-700 hover:text-orange-500 font-medium">
                       Dashboard
                     </Link>
-                    <Link href="/dashboard/students" className="text-gray-700 hover:text-orange-500 font-medium">
+                    <Link href="/students" className="text-gray-700 hover:text-orange-500 font-medium">
                       Students
                     </Link>
                     <Link href="/curriculum" className="text-gray-700 hover:text-orange-500 font-medium">

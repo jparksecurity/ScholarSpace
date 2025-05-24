@@ -6,14 +6,7 @@ import { createStudentAction, updateStudentAction, CreateStudentData } from '../
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+
 import {
   Dialog,
   DialogContent,
@@ -21,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
+
+import { calculateAge } from '@/lib/utils';
 
 interface OnboardingData {
   currentProgress?: Array<{
@@ -40,34 +34,9 @@ interface StudentFormProps {
   onStudentUpdated?: (student: StudentWithRelations) => void;
 }
 
-const SUBJECTS = [
-  'Mathematics',
-  'English Language Arts',
-  'Science',
-  'Social Studies',
-  'Art',
-  'Music',
-  'Physical Education',
-  'Computer Science',
-  'Foreign Language',
-];
 
-const GRADE_LEVELS = [
-  'Pre-K',
-  'Kindergarten',
-  '1st Grade',
-  '2nd Grade',
-  '3rd Grade',
-  '4th Grade',
-  '5th Grade',
-  '6th Grade',
-  '7th Grade',
-  '8th Grade',
-  '9th Grade',
-  '10th Grade',
-  '11th Grade',
-  '12th Grade',
-];
+
+
 
 export function StudentForm({ student, onboardingData, onClose, onStudentCreated, onStudentUpdated }: StudentFormProps) {
   const [loading, setLoading] = useState(false);
@@ -75,11 +44,11 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
     firstName: '',
     lastName: '',
     dateOfBirth: '',
-    gradeLevel: '',
     avatar: '',
-    bio: '',
-    subjects: [] as string[],
   });
+
+  // Calculate age for display
+  const currentAge = calculateAge(formData.dateOfBirth);
 
   useEffect(() => {
     if (student && student.id) {
@@ -90,10 +59,7 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
         dateOfBirth: student.dateOfBirth 
           ? new Date(student.dateOfBirth).toISOString().split('T')[0]
           : '',
-        gradeLevel: student.gradeLevel,
         avatar: student.avatar || '',
-        bio: student.bio || '',
-        subjects: student.enrollments?.map(e => e.subject) || [],
       });
     }
   }, [student]);
@@ -107,10 +73,7 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
         firstName: formData.firstName,
         lastName: formData.lastName,
         dateOfBirth: formData.dateOfBirth || undefined,
-        gradeLevel: formData.gradeLevel,
         avatar: formData.avatar || undefined,
-        bio: formData.bio || undefined,
-        subjects: formData.subjects,
         // Include onboarding progress data for new students
         ...(onboardingData && !student ? { 
           currentProgress: onboardingData.currentProgress 
@@ -141,14 +104,7 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubjectChange = (subject: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      subjects: checked
-        ? [...prev.subjects, subject]
-        : prev.subjects.filter(s => s !== subject),
-    }));
-  };
+
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -190,33 +146,27 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+            <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+            <Input
+              id="dateOfBirth"
+              type="date"
+              value={formData.dateOfBirth}
+              onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+              required
+            />
+          </div>
             <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                value={formData.dateOfBirth}
-                onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="gradeLevel">Grade Level *</Label>
-              <Select
-                value={formData.gradeLevel}
-                onValueChange={(value) => handleInputChange('gradeLevel', value)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select grade level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GRADE_LEVELS.map((grade) => (
-                    <SelectItem key={grade} value={grade}>
-                      {grade}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {currentAge && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>Age:</strong> {currentAge} years old
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    We use age-based learning instead of grade levels for personalized education
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -231,39 +181,9 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea
-              id="bio"
-              value={formData.bio}
-              onChange={(e) => handleInputChange('bio', e.target.value)}
-              placeholder="Tell us about your student's interests, goals, or learning style..."
-              rows={3}
-            />
-          </div>
 
-          <div className="space-y-3">
-            <Label>Subjects</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {SUBJECTS.map((subject) => (
-                <div key={subject} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={subject}
-                    checked={formData.subjects.includes(subject)}
-                    onCheckedChange={(checked) => 
-                      handleSubjectChange(subject, checked as boolean)
-                    }
-                  />
-                  <Label 
-                    htmlFor={subject}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {subject}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
+
+
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
@@ -271,7 +191,7 @@ export function StudentForm({ student, onboardingData, onClose, onStudentCreated
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !formData.firstName || !formData.lastName || !formData.gradeLevel}
+              disabled={loading || !formData.firstName || !formData.lastName || !formData.dateOfBirth}
             >
               {loading ? 'Saving...' : student ? 'Update Student' : 'Add Student'}
             </Button>
