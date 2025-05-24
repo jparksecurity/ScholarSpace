@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
-import { getNodesBeforeInSubject, subjectEnumToCurriculum, getNextNode, getNodesBySubject } from '@/lib/curriculum';
+import { getNodesBeforeInSubject, subjectEnumToCurriculum, getNextNode, getNodesBySubject, getNodeById } from '@/lib/curriculum';
 
 export interface CreateStudentData {
   firstName: string;
@@ -83,7 +83,12 @@ export async function createStudentAction(data: CreateStudentData) {
             
             // Get all nodes that come before and including the last completed node
             const completedNodes = getNodesBeforeInSubject(ip.lastCompletedNodeId, subjectName);
-            completedNodes.push({ id: ip.lastCompletedNodeId } as { id: string }); // Add the last completed node itself
+            
+            // Add the last completed node itself
+            const lastCompletedNode = getNodeById(ip.lastCompletedNodeId);
+            if (lastCompletedNode) {
+              completedNodes.push(lastCompletedNode);
+            }
             
             // Create COMPLETED entries for all completed units
             // Use slightly offset timestamps to maintain chronological order

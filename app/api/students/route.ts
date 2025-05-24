@@ -1,7 +1,7 @@
 import { getAuth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/lib/generated/prisma';
-import { getNodesBeforeInSubject, getNodesBySubject, getNextNode } from '@/lib/curriculum';
+import { getNodesBeforeInSubject, getNodesBySubject, getNextNode, getNodeById } from '@/lib/curriculum';
 
 interface InitialProgressData {
   subject: string;
@@ -125,7 +125,12 @@ export async function POST(request: NextRequest) {
               if (lastCompletedNode && lastCompletedNode.subject === subjectName) {
                 // Get all completed nodes (including the last completed one)
                 const completedNodes = getNodesBeforeInSubject(ip.lastCompletedNodeId, subjectName);
-                completedNodes.push({ id: ip.lastCompletedNodeId, subject: lastCompletedNode.subject }); // Add the last completed node itself
+                
+                // Add the last completed node itself
+                const lastCompletedCurriculumNode = getNodeById(ip.lastCompletedNodeId);
+                if (lastCompletedCurriculumNode) {
+                  completedNodes.push(lastCompletedCurriculumNode);
+                }
                 
                 // Create COMPLETED entries for all completed units with staggered timestamps
                 completedNodes.forEach((node, index) => {

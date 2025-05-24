@@ -88,3 +88,36 @@ prisma/
 ## Development
 
 This project follows the Google TypeScript Guide and 12-factor app principles. The database uses PostgreSQL with Prisma for type-safe database operations.
+
+## Learning Plan Generation
+
+ScholarSpace uses a sophisticated two-step approach to generate personalized learning plans that respect curriculum prerequisites:
+
+### Step 1: Goal Selection
+- AI analyzes student's current progress and parent preferences
+- Selects appropriate end goals for each subject (Math, ELA, Science, Humanities)  
+- Considers student's age, grade level, and completed coursework
+- Chooses challenging but achievable targets
+
+### Step 2: Path Creation
+- Uses curriculum prerequisite graph to create ordered learning paths
+- Starts from student's current position (started but not completed units)
+- Builds sequential paths to selected end goals following prerequisite relationships
+- Filters out already completed units
+- Ensures logical progression respecting dependencies
+
+### Key Features
+- **Prerequisite Awareness**: Follows proper sequential and foundational relationships between curriculum units
+- **Progress Tracking**: Uses ProgressLog to identify completed vs. in-progress units
+- **Multi-Subject Planning**: Balances coverage across all subjects
+- **Adaptive Starting Points**: Begins from where student left off, not random starting points
+- **Goal-Oriented**: Works backward from meaningful end targets
+
+### Technical Implementation
+The system uses graph traversal algorithms to:
+- Find prerequisite chains using depth-first search
+- Create ordered paths between start and end nodes
+- Respect both sequential (within-course) and foundational (cross-course) relationships
+- Handle multiple starting points per subject
+
+This approach ensures students receive coherent, properly sequenced learning plans instead of random collections of curriculum units.

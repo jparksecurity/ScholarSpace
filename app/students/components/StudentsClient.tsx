@@ -266,7 +266,12 @@ export function StudentsClient({ initialStudents, isFirstTimeUser = false }: Stu
       {showForm && (
         <StudentForm
           student={editingStudent}
-          onboardingData={onboardingData || undefined}
+          onboardingData={onboardingData ? {
+            initialProgress: onboardingData.initialProgress.map(item => ({
+              subject: item.subject,
+              nodeId: item.lastCompletedNodeId
+            }))
+          } : undefined}
           onClose={() => {
             setShowForm(false);
             setEditingStudent(null);

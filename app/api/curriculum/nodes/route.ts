@@ -11,18 +11,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'nodeIds array is required' }, { status: 400 });
     }
 
+    // Fetch nodes without ordering to preserve the original order
     const nodes = await prisma.curriculumNode.findMany({
       where: {
         id: {
           in: nodeIds
         }
-      },
-      orderBy: {
-        subject: 'asc'
       }
     });
 
-    return NextResponse.json({ nodes });
+    // Create a map for fast lookup
+    const nodeMap = new Map(nodes.map(node => [node.id, node]));
+    
+    // Return nodes in the same order as the input nodeIds array
+    const orderedNodes = nodeIds
+      .map(id => nodeMap.get(id))
+      .filter(Boolean); // Remove any null/undefined values
+
+    return NextResponse.json({ nodes: orderedNodes });
 
   } catch (error) {
     console.error('Error fetching curriculum nodes:', error);

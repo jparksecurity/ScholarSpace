@@ -3,13 +3,35 @@ import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { PrismaClient } from '@/lib/generated/prisma';
-import curriculumData from '@/curriculum_prerequisite_network.json';
-import { getSubjectProgressSummary } from '@/lib/curriculum';
+import { 
+  getSubjectProgressSummary, 
+  getCurriculumContext,
+  createComprehensiveSubjectPath,
+  getUniqueSubjects,
+  getNodeById,
+  getNextNode
+} from '@/lib/curriculum';
 
 const prisma = new PrismaClient();
 
-const LearningPlanSchema = z.object({
-  unitIds: z.array(z.string()),
+// Schema for AI to select end goals for each subject
+const SubjectGoalsSchema = z.object({
+  math: z.object({
+    endNodeId: z.string(),
+    reasoning: z.string()
+  }),
+  ela: z.object({
+    endNodeId: z.string(),
+    reasoning: z.string()
+  }),
+  science: z.object({
+    endNodeId: z.string(),
+    reasoning: z.string()
+  }),
+  humanities: z.object({
+    endNodeId: z.string(),
+    reasoning: z.string()
+  })
 });
 
 export async function POST(request: NextRequest) {
@@ -44,82 +66,181 @@ export async function POST(request: NextRequest) {
       ? Math.floor((Date.now() - student.dateOfBirth.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       : null;
 
-    // Build context about student's current progress using ProgressLog
+    // Get comprehensive curriculum context
+    const curriculumContext = getCurriculumContext(student.progressLog || []);
     const progressSummary = getSubjectProgressSummary(student.progressLog || []);
-    const currentProgress = Object.entries(progressSummary).map(([, data]: [string, {
-      subject: string;
-      subjectName: string;
-      completedCount: number;
-      totalCount: number;
-      progressPercentage: number;
-      currentNodeId: string | null;
-      latestActivity: Date | null;
-    }]) => ({
+    
+    // Build progress context for AI
+    const currentProgress = Object.entries(progressSummary).map(([, data]) => ({
       subject: data.subject,
       currentNodeId: data.currentNodeId,
       completedCount: data.completedCount,
-      progressPercentage: data.progressPercentage
+      progressPercentage: data.progressPercentage,
+      startingPoints: curriculumContext.startingPointsBySubject[data.subject.toLowerCase()] || [],
+      possibleEndNodes: curriculumContext.possibleEndNodesBySubject[data.subject.toLowerCase()] || []
     }));
 
-    // Create simplified system prompt
-    const systemPrompt = `You are an expert educational curriculum planner. Create a simple 1-year learning plan for a student.
+    // STEP 1: Ask AI to select end goals for each subject
+    const goalSelectionPrompt = `You are an expert educational curriculum planner. Based on the student's current progress and parent preferences, select appropriate END GOALS for each subject for a 1-year learning plan.
 
-    CURRICULUM CONTEXT:
-    - You have access to Khan Academy's K-12 curriculum with prerequisite relationships
-    - Each node represents a unit with specific learning objectives
-    - Units must follow prerequisite paths
-    
-    STUDENT CONTEXT:
-    - Name: ${student.firstName} ${student.lastName}
-    - Age: ${age}
-    - Current Progress: ${JSON.stringify(currentProgress)}
-    
-    PARENT PREFERENCES:
-    ${preferences || 'No specific preferences provided'}
-    
-    AVAILABLE CURRICULUM NODES:
-    ${JSON.stringify(curriculumData.nodes.map(node => ({
+STUDENT CONTEXT:
+- Name: ${student.firstName} ${student.lastName}
+- Age: ${age || 'Unknown'}
+
+PARENT PREFERENCES:
+${preferences || 'No specific preferences provided'}
+
+CURRENT PROGRESS:
+${JSON.stringify(currentProgress, null, 2)}
+
+AVAILABLE END NODES BY SUBJECT:
+${JSON.stringify(Object.fromEntries(
+  Object.entries(curriculumContext.possibleEndNodesBySubject).map(([subject, nodes]) => [
+    subject,
+    nodes.map(node => ({
       id: node.id,
       unitTitle: node.unit_title,
       courseTitle: node.course_title,
-      subject: node.subject,
       gradeLevel: node.grade_level
-    })), null, 2)}
-    
-    PLAN REQUIREMENTS:
-    1. Return a simple ordered list of curriculum node IDs for the student to complete in 1 year
-    2. Respect prerequisite relationships 
-    3. Include all subjects: math, science, ELA, humanities
-    4. Order them in a logical learning progression
-    5. Include 30-50 units total (reasonable for one year)
-    
-    IMPORTANT: Only include curriculum node IDs that exist in the provided curriculum data.`;
+    }))
+  ])
+), null, 2)}
 
-    const userPrompt = `Create a 1-year learning plan by selecting curriculum node IDs in the proper sequence.
-    
-    Parent preferences: "${preferences || 'No specific preferences'}"
-    
-    Focus on logical progression and balanced subject coverage. Return only the unitIds array.`;
+INSTRUCTIONS:
+1. You MUST select ONE appropriate end node for EACH of the four subjects: math, ela, science, and humanities
+2. Consider the student's current progress and age/grade level for each subject
+3. Choose challenging but achievable goals for each subject
+4. Each end node should be reachable from the student's current starting points
+5. Provide reasoning for each choice
+6. Do not skip any subjects - all four must have goals
 
-    // Generate the learning plan using AI
-    const result = await generateObject({
+Return an object with math, ela, science, and humanities as keys, each containing endNodeId and reasoning.`;
+
+    const goalResult = await generateObject({
       model: openai('o4-mini'),
-      schema: LearningPlanSchema,
-      system: systemPrompt,
-      prompt: userPrompt,
+      schema: SubjectGoalsSchema,
+      prompt: goalSelectionPrompt,
     });
 
-    const generatedPlan = result.object;
+    const selectedGoals = goalResult.object;
 
-    // Validate that all unitIds exist in the curriculum
-    const availableNodeIds = new Set(curriculumData.nodes.map(node => node.id));
-    const validUnitIds = generatedPlan.unitIds.filter(id => availableNodeIds.has(id));
+    // STEP 2: Create ordered paths for each subject
+    const subjects = getUniqueSubjects();
+    const allOrderedUnits: string[] = [];
+    const subjectDebugInfo: Array<{
+      subject: string;
+      goal: string;
+      startingPoints: number;
+      pathUnits: number;
+      hasPath: boolean;
+    }> = [];
     
-    if (validUnitIds.length === 0) {
-      return NextResponse.json({ error: 'No valid curriculum units found in generated plan' }, { status: 400 });
+    for (const subject of subjects) {
+      const goal = selectedGoals[subject as keyof typeof selectedGoals];
+      const startingPoints = curriculumContext.startingPointsBySubject[subject] || [];
+      const completedNodes = curriculumContext.completedNodesBySubject[subject] || [];
+      
+      let subjectUnits: string[] = [];
+      
+      if (goal && goal.endNodeId) {
+        // Create a comprehensive path using all starting points
+        if (startingPoints.length > 0) {
+          const comprehensivePath = createComprehensiveSubjectPath(
+            subject, 
+            startingPoints, 
+            goal.endNodeId, 
+            completedNodes
+          );
+          subjectUnits = [...subjectUnits, ...comprehensivePath];
+        } else {
+          // If no starting points, try to find a logical start
+          const subjectStartNodes = curriculumContext.edges
+            .filter(edge => edge.from === 'START' && edge.relationship_type === 'system')
+            .map(edge => edge.to)
+            .filter(nodeId => {
+              const node = getNodeById(nodeId);
+              return node && node.subject === subject;
+            });
+          
+          if (subjectStartNodes.length > 0) {
+            const comprehensivePath = createComprehensiveSubjectPath(
+              subject, 
+              subjectStartNodes, 
+              goal.endNodeId, 
+              completedNodes
+            );
+            subjectUnits = [...subjectUnits, ...comprehensivePath];
+          }
+        }
+      } else {
+        // No goal selected for this subject - add some starter units
+        console.log(`No goal selected for ${subject}, adding starter units`);
+        const subjectStartNodes = curriculumContext.edges
+          .filter(edge => edge.from === 'START' && edge.relationship_type === 'system')
+          .map(edge => edge.to)
+          .filter(nodeId => {
+            const node = getNodeById(nodeId);
+            return node && node.subject === subject;
+          });
+        
+        // Add first few units of the subject
+        if (subjectStartNodes.length > 0) {
+          const startNode = subjectStartNodes[0];
+          let currentNodeId = startNode;
+          let unitsAdded = 0;
+          const maxStarterUnits = 5; // Add first 5 units if no goal
+          const starterUnits: string[] = [];
+          
+          while (currentNodeId && unitsAdded < maxStarterUnits) {
+            if (!completedNodes.includes(currentNodeId)) {
+              starterUnits.push(currentNodeId);
+              unitsAdded++;
+            }
+            const nextNode = getNextNode(currentNodeId);
+            currentNodeId = nextNode?.id || '';
+          }
+          
+          subjectUnits = [...subjectUnits, ...starterUnits];
+        }
+      }
+      
+      // Remove duplicates for this subject and add to overall list
+      const uniqueSubjectUnits = [...new Set(subjectUnits)];
+      allOrderedUnits.push(...uniqueSubjectUnits);
+      
+      subjectDebugInfo.push({
+        subject,
+        goal: goal?.endNodeId || 'none',
+        startingPoints: startingPoints.length,
+        pathUnits: uniqueSubjectUnits.length,
+        hasPath: uniqueSubjectUnits.length > 0
+      });
     }
 
-    // Save the simplified learning plan to database
+    // Remove duplicates while preserving order
+    const uniqueOrderedUnits = [...new Set(allOrderedUnits)];
+
+    // Validate that all unitIds exist in the curriculum
+    const validUnitIds = uniqueOrderedUnits.filter(id => getNodeById(id));
+    
+    if (validUnitIds.length === 0) {
+      return NextResponse.json({ 
+        error: 'No valid curriculum units found in generated plan',
+        debug: {
+          selectedGoals,
+          curriculumContext: {
+            ...curriculumContext,
+            availableNodes: curriculumContext.availableNodes.length,
+            edges: curriculumContext.edges.length
+          }
+        }
+      }, { status: 400 });
+    }
+
+    // Limit to reasonable size for one year (30-60 units)
+    const finalUnitIds = validUnitIds.slice(0, 50);
+
+    // Save the learning plan to database
     const startDate = new Date();
     const endDate = new Date();
     endDate.setFullYear(startDate.getFullYear() + 1);
@@ -130,13 +251,32 @@ export async function POST(request: NextRequest) {
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         isActive: true,
-        unitIds: validUnitIds, // Use validated unit IDs
+        unitIds: finalUnitIds,
       }
     });
 
     return NextResponse.json({
       success: true,
-      plan: learningPlan
+      plan: learningPlan,
+      selectedGoals,
+      debug: {
+        totalUnitsBeforeDedup: allOrderedUnits.length,
+        totalUnitsAfterDedup: uniqueOrderedUnits.length,
+        finalUnitCount: finalUnitIds.length,
+        goalSelection: selectedGoals,
+        subjectPaths: subjectDebugInfo,
+        curriculumContext: {
+          completedNodesBySubject: Object.fromEntries(
+            Object.entries(curriculumContext.completedNodesBySubject).map(([k, v]) => [k, v.length])
+          ),
+          startingPointsBySubject: Object.fromEntries(
+            Object.entries(curriculumContext.startingPointsBySubject).map(([k, v]) => [k, v.length])
+          ),
+          possibleEndNodesBySubject: Object.fromEntries(
+            Object.entries(curriculumContext.possibleEndNodesBySubject).map(([k, v]) => [k, v.length])
+          )
+        }
+      }
     });
 
   } catch (error) {
@@ -146,4 +286,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

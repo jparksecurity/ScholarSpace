@@ -92,14 +92,14 @@ export default function LearningPlanView({ plan }: { plan: LearningPlan }) {
   const completedCount = units.filter(unit => unit.isCompleted).length;
   const progressPercentage = units.length > 0 ? (completedCount / units.length) * 100 : 0;
 
-  // Group units by subject for better organization
-  const unitsBySubject = units.reduce((acc, unit) => {
+  // Group units by subject while preserving original order within each subject
+  const unitsBySubject = units.reduce((acc, unit, originalIndex) => {
     if (!acc[unit.subject]) {
       acc[unit.subject] = [];
     }
-    acc[unit.subject].push(unit);
+    acc[unit.subject].push({ ...unit, originalIndex });
     return acc;
-  }, {} as Record<string, CurriculumUnit[]>);
+  }, {} as Record<string, (CurriculumUnit & { originalIndex: number })[]>);
 
   return (
     <div className="space-y-6">
@@ -140,53 +140,60 @@ export default function LearningPlanView({ plan }: { plan: LearningPlan }) {
       <div className="space-y-4">
         <h4 className="font-semibold text-lg">Learning Units</h4>
         
-        {Object.entries(unitsBySubject).map(([subject, subjectUnits]) => (
-          <Card key={subject}>
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-2">
-                <Badge className={subjectColors[subject] || 'bg-gray-100'}>
-                  {subject.toUpperCase()}
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  {subjectUnits.filter(u => u.isCompleted).length} of {subjectUnits.length} completed
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {subjectUnits.map((unit, index) => (
-                  <div 
-                    key={unit.id}
-                    className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20"
-                  >
-                    <div className="mt-0.5">
-                      {unit.isCompleted ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Circle className="h-4 w-4 text-gray-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h5 className="font-medium text-sm leading-tight">
-                            {unit.unitTitle}
-                          </h5>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {unit.courseTitle} • Grade {unit.gradeLevel}
-                          </p>
+        {Object.entries(unitsBySubject)
+          .sort(([a], [b]) => a.localeCompare(b)) // Sort subjects alphabetically
+          .map(([subject, subjectUnits]) => {
+            // Sort units within each subject by their original order
+            const orderedSubjectUnits = subjectUnits.sort((a, b) => a.originalIndex - b.originalIndex);
+            
+            return (
+              <Card key={subject}>
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2">
+                    <Badge className={subjectColors[subject] || 'bg-gray-100'}>
+                      {subject.toUpperCase()}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {orderedSubjectUnits.filter(u => u.isCompleted).length} of {orderedSubjectUnits.length} completed
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {orderedSubjectUnits.map((unit) => (
+                      <div 
+                        key={unit.id}
+                        className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20"
+                      >
+                        <div className="mt-0.5">
+                          {unit.isCompleted ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Circle className="h-4 w-4 text-gray-400" />
+                          )}
                         </div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          #{index + 1}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h5 className="font-medium text-sm leading-tight">
+                                {unit.unitTitle}
+                              </h5>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {unit.courseTitle} • Grade {unit.gradeLevel}
+                              </p>
+                            </div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              #{unit.originalIndex + 1}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </CardContent>
+              </Card>
+            );
+          })}
       </div>
     </div>
   );
