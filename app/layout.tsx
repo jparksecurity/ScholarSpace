@@ -43,6 +43,9 @@ export default function RootLayout({
                     <Link href="/dashboard" className="text-gray-700 hover:text-orange-500 font-medium">
                       Dashboard
                     </Link>
+                    <Link href="/curriculum" className="text-gray-700 hover:text-orange-500 font-medium">
+                      Curriculum
+                    </Link>
                   </SignedIn>
                   <SignedOut>
                     <Link href="#features" className="text-gray-700 hover:text-orange-500 font-medium">

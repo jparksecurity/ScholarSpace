@@ -1,21 +1,27 @@
 import prisma from "@/lib/prisma";
+import CurriculumGraph from "@/components/CurriculumGraph";
 
 export default async function CurriculumPage() {
+  // Fetch all nodes for the graph (filtering handled by graph component)
   const nodes = await prisma.curriculumNode.findMany({
-    take: 10,
     orderBy: {
       subject: 'asc',
     },
   });
 
+  // Fetch all edges (filtering handled by graph component)
   const edges = await prisma.curriculumEdge.findMany({
-    take: 10,
     include: {
       fromNode: true,
       toNode: true,
     },
   });
 
+  // Get sample data for display below the graph
+  const sampleNodes = nodes.slice(0, 10);
+  const sampleEdges = edges.slice(0, 10);
+
+  // Calculate stats for display
   const nodeStats = await prisma.curriculumNode.groupBy({
     by: ['subject'],
     _count: {
@@ -23,19 +29,29 @@ export default async function CurriculumPage() {
     },
   });
 
-  const edgeStats = await prisma.curriculumEdge.groupBy({
-    by: ['relationshipType'],
-    _count: {
-      relationshipType: true,
-    },
-  });
+  const edgeStats = edges.reduce((acc, edge) => {
+    const type = edge.relationshipType;
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
-  const totalNodes = await prisma.curriculumNode.count();
-  const totalEdges = await prisma.curriculumEdge.count();
+  const edgeStatsArray = Object.entries(edgeStats).map(([relationshipType, count]) => ({
+    relationshipType,
+    _count: { relationshipType: count },
+  }));
+
+  const totalNodes = nodes.length;
+  const totalEdges = edges.length;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">ScholarSpace Curriculum Network</h1>
+      
+      {/* Interactive Graph */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Interactive Curriculum Network</h2>
+        <CurriculumGraph nodes={nodes} edges={edges} />
+      </div>
       
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -53,7 +69,7 @@ export default async function CurriculumPage() {
         </div>
         <div className="bg-orange-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold text-orange-800">Edge Types</h3>
-          <p className="text-2xl font-bold text-orange-600">{edgeStats.length}</p>
+          <p className="text-2xl font-bold text-orange-600">{edgeStatsArray.length}</p>
         </div>
       </div>
 
@@ -74,7 +90,7 @@ export default async function CurriculumPage() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Relationships by Type</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {edgeStats.map((stat) => (
+          {edgeStatsArray.map((stat) => (
             <div key={stat.relationshipType} className="border rounded-lg p-4">
               <h3 className="font-semibold capitalize">{stat.relationshipType}</h3>
               <p className="text-xl font-bold text-green-600">{stat._count.relationshipType} connections</p>
@@ -87,7 +103,7 @@ export default async function CurriculumPage() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Sample Curriculum Units</h2>
         <div className="space-y-4">
-          {nodes.map((node) => (
+          {sampleNodes.map((node) => (
             <div key={node.id} className="border rounded-lg p-4">
               <h3 className="font-semibold">{node.unitTitle}</h3>
               <p className="text-gray-600">{node.courseTitle} - Grade {node.gradeLevel}</p>
@@ -108,7 +124,7 @@ export default async function CurriculumPage() {
       <div>
         <h2 className="text-2xl font-bold mb-4">Sample Relationships</h2>
         <div className="space-y-4">
-          {edges.map((edge) => (
+          {sampleEdges.map((edge) => (
             <div key={edge.id} className="border rounded-lg p-4">
               <div className="flex items-center gap-4">
                 <div className="flex-1">
@@ -131,7 +147,8 @@ export default async function CurriculumPage() {
 
       <div className="mt-8 p-4 bg-green-50 rounded-lg">
         <p className="text-green-800">
-          ✅ Curriculum data successfully loaded! Check Prisma Studio at{' '}
+          ✅ Curriculum data successfully loaded! Use the controls in the graph panel to filter and explore different views of the network.
+          {' '}Check Prisma Studio at{' '}
           <a href="http://localhost:5555" target="_blank" rel="noopener noreferrer" className="underline">
             http://localhost:5555
           </a>{' '}
