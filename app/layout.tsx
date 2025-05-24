@@ -46,6 +46,9 @@ export default function RootLayout({
                     <Link href="/students" className="text-gray-700 hover:text-orange-500 font-medium">
                       Students
                     </Link>
+                    <Link href="/learning-plans" className="text-gray-700 hover:text-orange-500 font-medium">
+                      Learning Plans
+                    </Link>
                     <Link href="/curriculum" className="text-gray-700 hover:text-orange-500 font-medium">
                       Curriculum
                     </Link>

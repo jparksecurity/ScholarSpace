@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle, Play, GraduationCap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, GraduationCap, Target, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,7 @@ interface StudentOnboardingProps {
 interface OnboardingData {
   subjectProgress: {
     subject: string;
-    lastCompletedNodeId: string | null;
+    currentNodeId: string | null;
   }[];
 }
 
@@ -71,9 +71,9 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
   };
 
   const handleComplete = () => {
-    const subjectProgressData = Object.entries(subjectProgress).map(([subject, lastCompletedNodeId]) => ({
+    const subjectProgressData = Object.entries(subjectProgress).map(([subject, currentNodeId]) => ({
       subject,
-      lastCompletedNodeId,
+      currentNodeId,
     }));
 
     onComplete({ subjectProgress: subjectProgressData });
@@ -107,8 +107,8 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
                   For each subject, we&apos;ll show you the learning sequence from basic to advanced topics. 
-                  Simply tell us the last unit your student has successfully completed in that subject. 
-                  This helps us understand exactly where they are and what they should work on next.
+                  Simply tell us what unit your student should work on next in that subject. 
+                  This helps us understand exactly where they are in their learning journey.
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -133,11 +133,11 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-blue-600" />
+                    <Target className="h-5 w-5 text-blue-600" />
                     What We&apos;re Looking For
                   </h4>
                   <p className="text-sm text-blue-800">
-                    Select the most recent unit your student has <strong>successfully completed</strong>. 
+                    Select the unit your student should <strong>work on next</strong>. 
                     If they haven&apos;t started a subject yet, that&apos;s perfectly fine - just leave it unselected 
                     and we&apos;ll start them at the beginning.
                   </p>
@@ -184,10 +184,10 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
         <div className="space-y-6">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">
-              What&apos;s the last unit your student completed in {currentSubject.subjectName}?
+              What unit should your student work on next in {currentSubject.subjectName}?
             </h3>
             <p className="text-muted-foreground">
-              Select the most recent unit they have successfully finished. 
+              Select the unit they should focus on next in their learning journey. 
               If they haven&apos;t started this subject, leave it unselected.
             </p>
           </div>
@@ -234,7 +234,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
                             htmlFor={unit.id}
                             className="flex items-center gap-2 cursor-pointer text-sm flex-1"
                           >
-                            <CheckCircle className="h-3 w-3 text-green-600" />
+                            <Circle className="h-3 w-3 text-blue-600" />
                             <span className="font-medium">Unit {unit.unit_number}:</span>
                             <span>{unit.unit_title}</span>
                           </Label>

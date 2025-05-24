@@ -20,7 +20,7 @@ import { calculateAge } from '@/lib/utils';
 interface OnboardingData {
   subjectProgress?: Array<{
     subject: string;
-    lastCompletedNodeId: string | null;
+    currentNodeId: string | null;
   }>;
 }
 

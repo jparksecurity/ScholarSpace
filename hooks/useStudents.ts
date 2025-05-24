@@ -25,7 +25,7 @@ export interface CreateStudentData {
   subjects?: string[];
   subjectProgress?: {
     subject: string;
-    lastCompletedNodeId: string | null;
+    currentNodeId: string | null;
   }[];
 }
 

@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
           
           // Create subject progress records
           const validSubjectProgress = subjectProgress.map((sp: SubjectProgressData) => {
-            // If lastCompletedNodeId is null or doesn't exist, set it to null
+            // If lastCompletedNodeId is null or doesn't exist, set currentNodeId to null
             const lastCompletedNodeId = sp.lastCompletedNodeId && existingNodeIds.has(sp.lastCompletedNodeId) 
               ? sp.lastCompletedNodeId 
               : null;
@@ -121,7 +121,6 @@ export async function POST(request: NextRequest) {
             return {
               studentId: newStudent.id,
               subject: sp.subject,
-              lastCompletedNodeId,
               currentNodeId,
             };
           });
@@ -135,7 +134,6 @@ export async function POST(request: NextRequest) {
             data: subjectProgress.map((sp: SubjectProgressData) => ({
               studentId: newStudent.id,
               subject: sp.subject,
-              lastCompletedNodeId: null,
               currentNodeId: null,
             })),
           });

@@ -29,24 +29,23 @@ model Student {
   progress          StudentProgress[]
   subjectProgress   SubjectProgress[]
   enrollments       StudentEnrollment[]
+  learningPlans     LearningPlan[]
 
   @@index([parentUserId])
   @@map("students")
 }
 
-// Tracks the current position (last completed unit) for each subject
+// Tracks the current position for each subject
 model SubjectProgress {
   id                    String          @id @default(cuid())
   studentId             String          @map("student_id")
   subject               String          // math, ela, science, humanities
-  lastCompletedNodeId   String?         @map("last_completed_node_id") // null means hasn't started
   currentNodeId         String?         @map("current_node_id") // what they should work on next
   updatedAt             DateTime        @updatedAt @map("updated_at")
   createdAt             DateTime        @default(now()) @map("created_at")
 
   // Relations
   student               Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  lastCompletedNode     CurriculumNode? @relation("LastCompletedNode", fields: [lastCompletedNodeId], references: [id])
   currentNode           CurriculumNode? @relation("CurrentNode", fields: [currentNodeId], references: [id])
 
   @@unique([studentId, subject])
@@ -118,7 +117,6 @@ model CurriculumNode {
   progress      StudentProgress[]
   
   // Subject progress relationships
-  lastCompletedFor SubjectProgress[] @relation("LastCompletedNode")
   currentFor       SubjectProgress[] @relation("CurrentNode")
 
   @@map("curriculum_nodes")
@@ -140,3 +138,28 @@ model CurriculumEdge {
   @@unique([fromNodeId, toNodeId])
   @@map("curriculum_edges")
 }
+
+model LearningPlan {
+  id              String                @id @default(cuid())
+  studentId       String                @map("student_id")
+  title           String
+  description     String?
+  preferences     String?               // JSON string of parent preferences
+  startDate       DateTime              @map("start_date")
+  endDate         DateTime              @map("end_date")
+  isActive        Boolean               @default(true) @map("is_active")
+  aiModel         String                @map("ai_model") // Which AI model was used
+  unitIds         String[]              @map("unit_ids") // Simple array of curriculum node IDs
+  estimatedHours  Float?                @map("estimated_hours") // Total estimated hours for the year
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  // Relations
+  student         Student               @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([isActive])
+  @@map("learning_plans")
+}
+
+

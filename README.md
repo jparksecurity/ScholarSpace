@@ -10,6 +10,13 @@ A comprehensive academic workspace for homeschooling families, built with Next.j
 - **Progress Tracking**: Monitor student progress across curriculum nodes with status tracking (Not Started, In Progress, Completed, Mastered, Needs Review)
 - **Onboarding Assessment**: Guided assessment process to evaluate student's current knowledge level when adding a new student
 
+### AI-Powered Learning Plans
+- **Personalized Plan Generation**: Create customized 1-year learning plans using OpenAI GPT-4-turbo
+- **Curriculum Integration**: Plans automatically follow Khan Academy's prerequisite network and respect learning progressions
+- **Parent Preferences**: Incorporate specific learning goals, pace preferences, and focus areas
+- **Progress Tracking**: Monitor completion of planned units with visual progress indicators
+- **Monthly Organization**: Plans are organized by month with estimated time commitments and priority levels
+
 ### Authentication & Security
 - Clerk authentication integration for secure user management
 - Parent-student relationship management (parents can only access their own students)
@@ -21,13 +28,16 @@ A comprehensive academic workspace for homeschooling families, built with Next.j
 - **Student Enrollments**: Manages subject enrollments with start/end dates
 - **Curriculum Nodes**: Learning units with relationships and prerequisites
 - **Curriculum Edges**: Defines relationships between curriculum nodes
+- **Learning Plans**: AI-generated 1-year learning plans with metadata and preferences
+- **Learning Plan Items**: Individual curriculum units scheduled by month with progress tracking
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
 - **Backend**: Next.js API routes
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: Clerk
+- **AI Integration**: Vercel AI SDK with OpenAI GPT-4-turbo
 - **UI Components**: Custom components built with Radix UI primitives
 
 ## Getting Started
@@ -48,20 +58,29 @@ A comprehensive academic workspace for homeschooling families, built with Next.j
 - `PUT /api/students/[id]` - Update student information
 - `DELETE /api/students/[id]` - Soft delete student
 
+### Learning Plans
+- `POST /api/learning-plans/generate` - Generate AI-powered learning plan
+- `GET /api/learning-plans/[studentId]` - Get learning plans for student
+- `DELETE /api/learning-plans/[studentId]?planId=<id>` - Delete specific learning plan
+
 ## Project Structure
 
 ```
 app/
-├── api/students/           # Student API routes
-├── dashboard/students/     # Student management UI
-│   └── components/         # Student-specific components
-├── layout.tsx             # Root layout with navigation
+├── api/
+│   ├── students/          # Student API routes
+│   └── learning-plans/    # Learning plan API routes
+├── dashboard/students/    # Student management UI
+├── learning-plans/        # Learning plan generator UI
+├── layout.tsx            # Root layout with navigation
+components/
+├── learning-plans/       # Learning plan components
+└── ui/                   # Reusable UI components
 hooks/
-├── useStudents.ts         # Student data management hook
+├── useStudents.ts        # Student data management hook
 prisma/
-├── schema.prisma          # Database schema
-├── migrations/            # Database migrations
-components/ui/             # Reusable UI components
+├── schema.prisma         # Database schema
+├── migrations/           # Database migrations
 ```
 
 ## Development

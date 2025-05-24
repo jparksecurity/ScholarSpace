@@ -201,14 +201,20 @@ export function getNodesBeforeInSubject(nodeId: string, subject: string): Curric
   return completedNodes;
 }
 
-// Get progress percentage for a subject based on last completed node
-export function getSubjectProgressPercentage(lastCompletedNodeId: string | null, subject: string): number {
+// Get progress percentage for a subject based on current node
+export function getSubjectProgressPercentage(currentNodeId: string | null, subject: string): number {
   const allSubjectNodes = getNodesBySubject(subject);
   
-  if (!lastCompletedNodeId || allSubjectNodes.length === 0) {
+  if (!currentNodeId || allSubjectNodes.length === 0) {
     return 0;
   }
   
-  const completedNodes = getNodesBeforeInSubject(lastCompletedNodeId, subject);
-  return Math.round((completedNodes.length / allSubjectNodes.length) * 100);
+  // Find the position of the current node in the subject
+  const currentNodeIndex = allSubjectNodes.findIndex(node => node.id === currentNodeId);
+  if (currentNodeIndex === -1) {
+    return 0;
+  }
+  
+  // Progress is the number of nodes before the current node
+  return Math.round((currentNodeIndex / allSubjectNodes.length) * 100);
 } 

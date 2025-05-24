@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
-import { getNextNode } from '@/lib/curriculum';
+// import { getNextNode } from '@/lib/curriculum'; // No longer needed
 
 export interface CreateStudentData {
   firstName: string;
@@ -12,7 +12,7 @@ export interface CreateStudentData {
   avatar?: string;
   subjectProgress?: {
     subject: string;
-    lastCompletedNodeId: string | null;
+    currentNodeId: string | null;
   }[];
 }
 
@@ -58,9 +58,9 @@ export async function createStudentAction(data: CreateStudentData) {
 
     // Create subject progress entries if provided
     if (subjectProgress.length > 0) {
-      // Validate that the lastCompletedNodeIds actually exist
+      // Validate that the currentNodeIds actually exist
       const nodeIds = subjectProgress
-        .map(sp => sp.lastCompletedNodeId)
+        .map(sp => sp.currentNodeId)
         .filter(Boolean) as string[];
       
       if (nodeIds.length > 0) {
@@ -77,18 +77,14 @@ export async function createStudentAction(data: CreateStudentData) {
         
         // Create subject progress records
         const validSubjectProgress = subjectProgress.map(sp => {
-          // If lastCompletedNodeId is null or doesn't exist, set it to null
-          const lastCompletedNodeId = sp.lastCompletedNodeId && existingNodeIds.has(sp.lastCompletedNodeId) 
-            ? sp.lastCompletedNodeId 
+          // If currentNodeId is null or doesn't exist, set it to null
+          const currentNodeId = sp.currentNodeId && existingNodeIds.has(sp.currentNodeId) 
+            ? sp.currentNodeId 
             : null;
-          
-          // Find the current node (next node to work on)
-          const currentNodeId = lastCompletedNodeId ? getNextNode(lastCompletedNodeId)?.id || null : null;
           
           return {
             studentId: newStudent.id,
             subject: sp.subject,
-            lastCompletedNodeId,
             currentNodeId,
           };
         });
@@ -97,12 +93,11 @@ export async function createStudentAction(data: CreateStudentData) {
           data: validSubjectProgress,
         });
       } else {
-        // Create subject progress records with no completed nodes
+        // Create subject progress records with no current nodes
         await tx.subjectProgress.createMany({
           data: subjectProgress.map(sp => ({
             studentId: newStudent.id,
             subject: sp.subject,
-            lastCompletedNodeId: null,
             currentNodeId: null,
           })),
         });

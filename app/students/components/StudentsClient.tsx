@@ -36,7 +36,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
   const [onboardingData, setOnboardingData] = useState<{
     subjectProgress?: Array<{
       subject: string;
-      lastCompletedNodeId: string | null;
+      currentNodeId: string | null;
     }>;
   } | null>(null);
 
@@ -64,7 +64,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
   const handleOnboardingComplete = (data: {
     subjectProgress?: Array<{
       subject: string;
-      lastCompletedNodeId: string | null;
+      currentNodeId: string | null;
     }>;
   }) => {
     setShowOnboarding(false);
@@ -87,7 +87,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
     if (!student.subjectProgress || student.subjectProgress.length === 0) return 0;
     
     const progressValues = student.subjectProgress.map(sp => 
-      getSubjectProgressPercentage(sp.lastCompletedNodeId, sp.subject)
+      getSubjectProgressPercentage(sp.currentNodeId, sp.subject)
     );
     
     const averageProgress = progressValues.reduce((sum, p) => sum + p, 0) / progressValues.length;
@@ -114,7 +114,7 @@ export function StudentsClient({ initialStudents }: StudentsClientProps) {
     // Use SubjectProgress if available
     if (student.subjectProgress && student.subjectProgress.length > 0) {
       student.subjectProgress.forEach(sp => {
-        const progress = getSubjectProgressPercentage(sp.lastCompletedNodeId, sp.subject);
+        const progress = getSubjectProgressPercentage(sp.currentNodeId, sp.subject);
         
         subjectProgressMap[sp.subject] = {
           name: subjectNames[sp.subject as keyof typeof subjectNames] || sp.subject,
