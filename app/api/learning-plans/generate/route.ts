@@ -11,6 +11,7 @@ import {
   getNodeById,
   getNextNode
 } from '@/lib/curriculum';
+import { mem0Client } from '@/lib/mem0';
 
 const prisma = new PrismaClient();
 
@@ -245,6 +246,7 @@ Return an object with math, ela, science, and humanities as keys, each containin
     const endDate = new Date();
     endDate.setFullYear(startDate.getFullYear() + 1);
 
+    // After successfully creating the learning plan
     const learningPlan = await prisma.learningPlan.create({
       data: {
         studentId,
@@ -254,6 +256,35 @@ Return an object with math, ela, science, and humanities as keys, each containin
         unitIds: finalUnitIds,
       }
     });
+
+    // Store the learning plan generation in Mem0
+    try {
+      await mem0Client.addMemory({
+        messages: [
+          { 
+            role: 'system', 
+            content: `Learning plan generated for student ${student.firstName} ${student.lastName}` 
+          },
+          { 
+            role: 'assistant', 
+            content: `Created a learning plan with ${finalUnitIds.length} curriculum units spanning from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}.` 
+          }
+        ],
+        userId: studentId,
+        metadata: {
+          type: 'learning_plan',
+          planId: learningPlan.id,
+          selectedGoals,
+          preferences: preferences || '',
+          unitCount: finalUnitIds.length,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (mem0Error) {
+      // Log the error but don't fail the whole request
+      console.error('Mem0 storage error:', mem0Error);
+      // Continue with the response
+    }
 
     return NextResponse.json({
       success: true,
