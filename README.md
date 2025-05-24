@@ -1,30 +1,69 @@
-# Homeschooling website concept
+# ScholarSpace
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+A comprehensive academic workspace for homeschooling families, built with Next.js, Prisma, and Clerk authentication.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/horaengs-projects-eeb40d34/v0-homeschooling-website-concept)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/Z8a9UxVCVqF)
+## Features
 
-## Overview
+### Student Management
+- **Student Profiles**: Create and manage profiles for multiple students with basic information (name, grade level, date of birth, bio, avatar)
+- **Subject Enrollment**: Track which subjects each student is enrolled in
+- **Progress Tracking**: Monitor student progress across curriculum nodes with status tracking (Not Started, In Progress, Completed, Mastered, Needs Review)
+- **Onboarding Assessment**: Guided assessment process to evaluate student's current knowledge level when adding a new student
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+### Authentication & Security
+- Clerk authentication integration for secure user management
+- Parent-student relationship management (parents can only access their own students)
+- Protected routes with middleware
 
-## Deployment
+### Database Schema
+- **Students**: Core student information linked to parent Clerk user ID
+- **Student Progress**: Tracks progress on individual curriculum nodes
+- **Student Enrollments**: Manages subject enrollments with start/end dates
+- **Curriculum Nodes**: Learning units with relationships and prerequisites
+- **Curriculum Edges**: Defines relationships between curriculum nodes
 
-Your project is live at:
+## Tech Stack
 
-**[https://vercel.com/horaengs-projects-eeb40d34/v0-homeschooling-website-concept](https://vercel.com/horaengs-projects-eeb40d34/v0-homeschooling-website-concept)**
+- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
+- **Backend**: Next.js API routes
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: Clerk
+- **UI Components**: Custom components built with Radix UI primitives
 
-## Build your app
+## Getting Started
 
-Continue building your app on:
+1. Clone the repository
+2. Install dependencies: `npm install` or `pnpm install`
+3. Set up your environment variables in `.env`
+4. Run database migrations: `npx prisma migrate dev`
+5. Generate Prisma client: `npx prisma generate`
+6. Start the development server: `npm run dev`
 
-**[https://v0.dev/chat/projects/Z8a9UxVCVqF](https://v0.dev/chat/projects/Z8a9UxVCVqF)**
+## API Endpoints
 
-## How It Works
+### Students
+- `GET /api/students` - Get all students for authenticated user
+- `POST /api/students` - Create a new student
+- `GET /api/students/[id]` - Get specific student
+- `PUT /api/students/[id]` - Update student information
+- `DELETE /api/students/[id]` - Soft delete student
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## Project Structure
+
+```
+app/
+├── api/students/           # Student API routes
+├── dashboard/students/     # Student management UI
+│   └── components/         # Student-specific components
+├── layout.tsx             # Root layout with navigation
+hooks/
+├── useStudents.ts         # Student data management hook
+prisma/
+├── schema.prisma          # Database schema
+├── migrations/            # Database migrations
+components/ui/             # Reusable UI components
+```
+
+## Development
+
+This project follows the Google TypeScript Guide and 12-factor app principles. The database uses PostgreSQL with Prisma for type-safe database operations.
