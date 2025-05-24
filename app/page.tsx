@@ -62,9 +62,16 @@ export default function HomePage() {
                   <p className="text-xl md:text-2xl mb-8 opacity-90">
                     Your all-in-one platform for a successful homeschooling journey.
                   </p>
-                  <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 text-lg">
-                    Get Started
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 text-lg">
+                      Get Started
+                    </Button>
+                    <Link href="/dashboard">
+                      <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 px-8 py-3 text-lg">
+                        Go to Dashboard
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
