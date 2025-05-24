@@ -37,7 +37,6 @@ import {
 
 interface StudentsClientProps {
   initialStudents: StudentWithRelations[];
-  isFirstTimeUser?: boolean;
 }
 
 interface OnboardingData {
@@ -47,9 +46,9 @@ interface OnboardingData {
   }>;
 }
 
-export function StudentsClient({ initialStudents, isFirstTimeUser = false }: StudentsClientProps) {
+export function StudentsClient({ initialStudents }: StudentsClientProps) {
   const [students, setStudents] = useState(initialStudents);
-  const [showOnboarding, setShowOnboarding] = useState(isFirstTimeUser);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithRelations | null>(null);
   const [deletingStudent, setDeletingStudent] = useState<StudentWithRelations | null>(null);
@@ -60,7 +59,7 @@ export function StudentsClient({ initialStudents, isFirstTimeUser = false }: Stu
   const handleCreateStudent = () => {
     setEditingStudent(null);
     setOnboardingData(null);
-    setShowForm(true);
+    setShowOnboarding(true);
   };
 
   const handleEditStudent = (student: StudentWithRelations) => {
@@ -269,7 +268,7 @@ export function StudentsClient({ initialStudents, isFirstTimeUser = false }: Stu
           onboardingData={onboardingData ? {
             initialProgress: onboardingData.initialProgress.map(item => ({
               subject: item.subject,
-              nodeId: item.lastCompletedNodeId
+              lastCompletedNodeId: item.lastCompletedNodeId
             }))
           } : undefined}
           onClose={() => {

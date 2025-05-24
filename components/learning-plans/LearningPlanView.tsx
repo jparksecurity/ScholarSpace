@@ -35,49 +35,62 @@ const subjectColors: Record<string, string> = {
   humanities: 'bg-orange-100 text-orange-800 border-orange-200',
 };
 
-export default function LearningPlanView({ plan }: { plan: LearningPlan }) {
+interface LearningPlanViewProps {
+  plan: LearningPlan;
+  curriculumNodes?: CurriculumUnit[];
+}
+
+export default function LearningPlanView({ plan, curriculumNodes = [] }: LearningPlanViewProps) {
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch curriculum unit details and completion status
+  // Use provided curriculum nodes or fetch them if not provided (fallback)
   useEffect(() => {
-    const loadUnits = async () => {
-      try {
-        // Fetch curriculum node details
-        const curriculumResponse = await fetch('/api/curriculum/nodes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nodeIds: plan.unitIds })
-        });
-        
-        if (!curriculumResponse.ok) {
-          throw new Error('Failed to fetch curriculum nodes');
+    if (curriculumNodes.length > 0) {
+      // Use provided nodes
+      const unitsWithProgress = curriculumNodes.map((node: CurriculumUnit) => ({
+        ...node,
+        isCompleted: false // TODO: Fetch actual completion status
+      }));
+      setUnits(unitsWithProgress);
+      setLoading(false);
+    } else {
+      // Fallback: fetch from API (for backward compatibility)
+      const loadUnits = async () => {
+        try {
+          const response = await fetch('/api/curriculum/nodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nodeIds: plan.unitIds })
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch curriculum nodes');
+          }
+          
+          const { nodes } = await response.json();
+          
+          const unitsWithProgress = nodes.map((node: CurriculumUnit) => ({
+            ...node,
+            isCompleted: false
+          }));
+          
+          setUnits(unitsWithProgress);
+        } catch (error) {
+          console.error('Error loading units:', error);
+          setUnits([]);
+        } finally {
+          setLoading(false);
         }
-        
-        const { nodes } = await curriculumResponse.json();
-        
-        // TODO: Fetch completion status for these units
-        // For now, all units are marked as not completed
-        const unitsWithProgress = nodes.map((node: CurriculumUnit) => ({
-          ...node,
-          isCompleted: false
-        }));
-        
-        setUnits(unitsWithProgress);
-      } catch (error) {
-        console.error('Error loading units:', error);
-        setUnits([]);
-      } finally {
+      };
+
+      if (plan.unitIds?.length > 0) {
+        loadUnits();
+      } else {
         setLoading(false);
       }
-    };
-
-    if (plan.unitIds?.length > 0) {
-      loadUnits();
-    } else {
-      setLoading(false);
     }
-  }, [plan.unitIds]);
+  }, [plan.unitIds, curriculumNodes]);
 
   if (loading) {
     return (
