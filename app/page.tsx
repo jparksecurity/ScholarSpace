@@ -1,295 +1,196 @@
-import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { BookOpen, Download, Play, FileText, Beaker, Book, Clock } from "lucide-react"
+import { BookOpen, Users, Target, Award, ArrowRight, Check } from "lucide-react"
 
-export default function HomePage() {
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="h-8 w-8 text-orange-500" />
-              <span className="text-xl font-bold text-gray-900">Homeschool Hub</span>
-            </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link href="#" className="text-gray-700 hover:text-orange-500 font-medium">
-                Home
-              </Link>
-              <Link href="#curriculum" className="text-gray-700 hover:text-orange-500 font-medium">
-                Curriculum
-              </Link>
-              <Link href="#progress" className="text-gray-700 hover:text-orange-500 font-medium">
-                Progress
-              </Link>
-              <Link href="#resources" className="text-gray-700 hover:text-orange-500 font-medium">
-                Resources
-              </Link>
-              <Link href="#community" className="text-gray-700 hover:text-orange-500 font-medium">
-                Community
-              </Link>
-              <Link href="#profile" className="text-gray-700 hover:text-orange-500 font-medium">
-                Profile
-              </Link>
-            </div>
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-              <AvatarFallback>SM</AvatarFallback>
-            </Avatar>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-white">
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-orange-100 to-amber-50 py-20">
+      <section className="relative bg-gradient-to-br from-orange-50 to-amber-50 py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="relative mx-auto mb-8 w-full max-w-4xl h-80 rounded-2xl overflow-hidden">
-              <Image
-                src="/placeholder.svg?height=320&width=800"
-                alt="Family homeschooling together"
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <h1 className="text-4xl md:text-6xl font-bold mb-4">Welcome to Homeschool Hub</h1>
-                  <p className="text-xl md:text-2xl mb-8 opacity-90">
-                    Your all-in-one platform for a successful homeschooling journey.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 text-lg">
-                      Get Started
-                    </Button>
-                    <Link href="/dashboard">
-                      <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 px-8 py-3 text-lg">
-                        Go to Dashboard
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Curriculum Section */}
-      <section id="curriculum" className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12">Curriculum</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="bg-gradient-to-br from-teal-100 to-teal-200 border-0 hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-4">
-                <div className="h-32 bg-teal-300 rounded-lg mb-4 flex items-center justify-center">
-                  <FileText className="h-12 w-12 text-teal-700" />
-                </div>
-                <CardTitle className="text-xl">Math</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-gray-700">Engaging math lessons</CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-0 hover:shadow-lg transition-shadow text-white">
-              <CardHeader className="pb-4">
-                <div className="h-32 bg-gray-700 rounded-lg mb-4 flex items-center justify-center">
-                  <Beaker className="h-12 w-12 text-gray-300" />
-                </div>
-                <CardTitle className="text-xl">Science</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-gray-300">Exciting science experiments</CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-green-100 to-green-200 border-0 hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-4">
-                <div className="h-32 bg-green-300 rounded-lg mb-4 flex items-center justify-center">
-                  <Book className="h-12 w-12 text-green-700" />
-                </div>
-                <CardTitle className="text-xl">Reading</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-gray-700">Captivating reading materials</CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-emerald-600 to-emerald-700 border-0 hover:shadow-lg transition-shadow text-white">
-              <CardHeader className="pb-4">
-                <div className="h-32 bg-emerald-500 rounded-lg mb-4 flex items-center justify-center">
-                  <Clock className="h-12 w-12 text-emerald-100" />
-                </div>
-                <CardTitle className="text-xl">History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-emerald-100">Interactive history modules</CardDescription>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Progress Section */}
-      <section id="progress" className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12">Progress</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Emily's Progress</CardTitle>
-                <div className="text-3xl font-bold text-orange-500">75%</div>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Ethan's Progress</CardTitle>
-                <div className="text-3xl font-bold text-orange-500">60%</div>
-              </CardHeader>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">Emily's Progress</span>
-                <span className="text-sm text-gray-600">75%</span>
-              </div>
-              <Progress value={75} className="h-3" />
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">Ethan's Progress</span>
-                <span className="text-sm text-gray-600">60%</span>
-              </div>
-              <Progress value={60} className="h-3" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Resources Section */}
-      <section id="resources" className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12">Resources</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader className="flex flex-row items-center space-y-0 pb-4">
-                <Download className="h-8 w-8 text-blue-500 mr-4" />
-                <div>
-                  <CardTitle>Downloadable Worksheets</CardTitle>
-                  <CardDescription>Access hundreds of printable worksheets</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader className="flex flex-row items-center space-y-0 pb-4">
-                <Play className="h-8 w-8 text-red-500 mr-4" />
-                <div>
-                  <CardTitle>Educational Videos</CardTitle>
-                  <CardDescription>Watch engaging educational content</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Community Section */}
-      <section id="community" className="py-16 bg-gradient-to-br from-amber-100 to-orange-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative bg-gradient-to-r from-amber-200 to-orange-200 rounded-2xl p-12 text-center overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-300/20 to-orange-300/20"></div>
-            <div className="relative z-10">
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">Join Our Homeschooling Forum</h2>
-              <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
-                Connect with other homeschooling families, share tips, and ask questions.
-              </p>
-              <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 text-lg">
-                Join Now
+            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6">
+              The Future of
+              <span className="block text-orange-500">Homeschooling</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto">
+              Empower your children's education with our comprehensive platform designed specifically for modern homeschooling families.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/home">
+                <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 text-lg">
+                  Start Your Journey
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="px-8 py-4 text-lg border-orange-200 text-gray-700 hover:bg-orange-50">
+                Watch Demo
               </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Profile Section */}
-      <section id="profile" className="py-16 bg-white">
+      {/* Features Section */}
+      <section id="features" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12">Profile</h2>
+          <div className="text-center mb-20">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose ScholarSpace?</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Everything you need to create an exceptional homeschooling experience for your family.
+            </p>
+          </div>
 
-          <Card className="mb-8">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src="/placeholder.svg?height=64&width=64" alt="Sarah Miller" />
-                    <AvatarFallback>SM</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-2xl">Sarah Miller</CardTitle>
-                    <CardDescription className="text-lg">Homeschooling Mom</CardDescription>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto h-16 w-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                  <BookOpen className="h-8 w-8 text-orange-500" />
                 </div>
-                <Button variant="outline">Edit Profile</Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <div className="text-gray-900">Sarah Miller</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <div className="text-gray-900">sarah.miller@email.com</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <div className="text-gray-900">Austin, Texas</div>
-              </div>
-            </CardContent>
-          </Card>
+                <CardTitle className="text-xl">Comprehensive Curriculum</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-center text-gray-600">
+                  Access grade-appropriate lessons across all subjects with interactive content and assessments.
+                </CardDescription>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">Child Profiles</CardTitle>
-                <Button variant="outline" size="sm">
-                  Add Child
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                <Avatar>
-                  <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Emily Miller" />
-                  <AvatarFallback>EM</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">Emily Miller</div>
-                  <div className="text-sm text-gray-600">Age 8, Grade 3</div>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <Target className="h-8 w-8 text-green-500" />
                 </div>
-              </div>
-              <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                <Avatar>
-                  <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Ethan Miller" />
-                  <AvatarFallback>EM</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">Ethan Miller</div>
-                  <div className="text-sm text-gray-600">Age 6, Grade 1</div>
+                <CardTitle className="text-xl">Progress Tracking</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-center text-gray-600">
+                  Monitor your children's learning progress with detailed analytics and personalized insights.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <Users className="h-8 w-8 text-blue-500" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <CardTitle className="text-xl">Community Support</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-center text-gray-600">
+                  Connect with other homeschooling families, share experiences, and get expert guidance.
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
+
+      {/* Benefits Section */}
+      <section className="py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <h2 className="text-4xl font-bold text-gray-900 mb-6">
+                Tailored Learning for Every Child
+              </h2>
+              <p className="text-lg text-gray-600 mb-8">
+                Our platform adapts to each child's unique learning style and pace, ensuring no one gets left behind.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <Check className="h-6 w-6 text-green-500 mr-3" />
+                  <span className="text-gray-700">Personalized learning paths</span>
+                </div>
+                <div className="flex items-center">
+                  <Check className="h-6 w-6 text-green-500 mr-3" />
+                  <span className="text-gray-700">Interactive lessons and activities</span>
+                </div>
+                <div className="flex items-center">
+                  <Check className="h-6 w-6 text-green-500 mr-3" />
+                  <span className="text-gray-700">Real-time progress monitoring</span>
+                </div>
+                <div className="flex items-center">
+                  <Check className="h-6 w-6 text-green-500 mr-3" />
+                  <span className="text-gray-700">Expert-designed curriculum</span>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl p-8 text-center">
+              <Award className="h-20 w-20 text-orange-500 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Award-Winning Platform</h3>
+              <p className="text-gray-600">
+                Recognized by educators and parents worldwide for excellence in homeschool education technology.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-gradient-to-r from-orange-500 to-amber-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Ready to Transform Your Homeschooling Experience?
+          </h2>
+          <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
+            Join thousands of families who have already discovered the power of personalized education.
+          </p>
+          <Link href="/home">
+            <Button size="lg" className="bg-white text-orange-500 hover:bg-gray-100 px-8 py-4 text-lg font-semibold">
+              Get Started Today
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <BookOpen className="h-8 w-8 text-orange-500" />
+                <span className="text-xl font-bold">ScholarSpace</span>
+              </div>
+              <p className="text-gray-400">
+                Empowering families through personalized education and community support.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Product</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li><Link href="#" className="hover:text-white">Features</Link></li>
+                <li><Link href="#" className="hover:text-white">Curriculum</Link></li>
+                <li><Link href="#" className="hover:text-white">Pricing</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Support</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li><Link href="#" className="hover:text-white">Help Center</Link></li>
+                <li><Link href="#" className="hover:text-white">Community</Link></li>
+                <li><Link href="#" className="hover:text-white">Contact Us</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Company</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li><Link href="#" className="hover:text-white">About</Link></li>
+                <li><Link href="#" className="hover:text-white">Blog</Link></li>
+                <li><Link href="#" className="hover:text-white">Privacy</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; 2024 ScholarSpace. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
