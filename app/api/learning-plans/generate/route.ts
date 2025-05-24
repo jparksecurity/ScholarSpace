@@ -3,6 +3,7 @@ import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { PrismaClient } from '@/lib/generated/prisma';
+import { MemoryClient } from 'mem0ai';
 import { 
   getSubjectProgressSummary, 
   getCurriculumContext,
@@ -13,6 +14,11 @@ import {
 } from '@/lib/curriculum';
 
 const prisma = new PrismaClient();
+
+// Initialize mem0 client with proper error handling
+const mem0 = process.env.MEM0_API_KEY ? new MemoryClient({
+  apiKey: process.env.MEM0_API_KEY,
+}) : null;
 
 // Schema for AI to select end goals for each subject
 const SubjectGoalsSchema = z.object({
@@ -80,8 +86,22 @@ export async function POST(request: NextRequest) {
       possibleEndNodes: curriculumContext.possibleEndNodesBySubject[data.subject.toLowerCase()] || []
     }));
 
+    // Retrieve previous learning patterns and preferences from mem0
+    let studentMemories: string[] = [];
+    if (mem0) {
+      try {
+        const memories = await mem0.search(
+          `learning preferences and patterns for student ${student.firstName} ${student.lastName}`,
+          { user_id: studentId, limit: 10 }
+        );
+        studentMemories = Array.isArray(memories) ? memories.map((m: { memory?: string; text?: string }) => m.memory || m.text || String(m)) : [];
+      } catch (error) {
+        console.log('Could not retrieve memories from mem0:', error);
+      }
+    }
+
     // STEP 1: Ask AI to select end goals for each subject
-    const goalSelectionPrompt = `You are an expert educational curriculum planner. Based on the student's current progress and parent preferences, select appropriate END GOALS for each subject for a 1-year learning plan.
+    const goalSelectionPrompt = `You are an expert educational curriculum planner. Based on the student's current progress, parent preferences, and previous learning patterns, select appropriate END GOALS for each subject for a 1-year learning plan.
 
 STUDENT CONTEXT:
 - Name: ${student.firstName} ${student.lastName}
@@ -89,6 +109,9 @@ STUDENT CONTEXT:
 
 PARENT PREFERENCES:
 ${preferences || 'No specific preferences provided'}
+
+PREVIOUS LEARNING PATTERNS AND MEMORIES:
+${studentMemories.length > 0 ? studentMemories.join('\n') : 'No previous learning patterns recorded'}
 
 CURRENT PROGRESS:
 ${JSON.stringify(currentProgress, null, 2)}
@@ -108,7 +131,7 @@ ${JSON.stringify(Object.fromEntries(
 
 INSTRUCTIONS:
 1. You MUST select ONE appropriate end node for EACH of the four subjects: math, ela, science, and humanities
-2. Consider the student's current progress and age/grade level for each subject
+2. Consider the student's current progress, age/grade level, and previous learning patterns for each subject
 3. Choose challenging but achievable goals for each subject
 4. Each end node should be reachable from the student's current starting points
 5. Provide reasoning for each choice
@@ -123,6 +146,20 @@ Return an object with math, ela, science, and humanities as keys, each containin
     });
 
     const selectedGoals = goalResult.object;
+
+    // Store learning plan generation insights in mem0
+    if (mem0) {
+      try {
+        const memoryContent = `Generated learning plan for ${student.firstName} ${student.lastName}. Selected goals: Math - ${selectedGoals.math.endNodeId} (${selectedGoals.math.reasoning}), ELA - ${selectedGoals.ela.endNodeId} (${selectedGoals.ela.reasoning}), Science - ${selectedGoals.science.endNodeId} (${selectedGoals.science.reasoning}), Humanities - ${selectedGoals.humanities.endNodeId} (${selectedGoals.humanities.reasoning}). Parent preferences: ${preferences || 'None specified'}. Student age: ${age || 'Unknown'}.`;
+        
+        await mem0.add(
+          [{ role: "user", content: memoryContent }],
+          { user_id: studentId }
+        );
+      } catch (error) {
+        console.log('Could not store memories in mem0:', error);
+      }
+    }
 
     // STEP 2: Create ordered paths for each subject
     const subjects = getUniqueSubjects();
