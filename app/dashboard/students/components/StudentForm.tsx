@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { useStudents, StudentWithRelations, CreateStudentData, UpdateStudentData } from '@/hooks/useStudents';
+import { StudentWithRelations } from '@/hooks/useStudents';
+import { createStudentAction, updateStudentAction, CreateStudentData } from '../actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,10 +23,21 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 
+interface OnboardingData {
+  currentProgress?: Array<{
+    nodeId: string;
+    status?: string;
+    score?: number;
+    completedAt?: string;
+  }>;
+}
+
 interface StudentFormProps {
   student?: StudentWithRelations | null;
-  onboardingData?: any;
+  onboardingData?: OnboardingData;
   onClose: () => void;
+  onStudentCreated?: (student: StudentWithRelations) => void;
+  onStudentUpdated?: (student: StudentWithRelations) => void;
 }
 
 const SUBJECTS = [
@@ -58,8 +69,7 @@ const GRADE_LEVELS = [
   '12th Grade',
 ];
 
-export function StudentForm({ student, onboardingData, onClose }: StudentFormProps) {
-  const { createStudent, updateStudent } = useStudents();
+export function StudentForm({ student, onboardingData, onClose, onStudentCreated, onStudentUpdated }: StudentFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -93,7 +103,7 @@ export function StudentForm({ student, onboardingData, onClose }: StudentFormPro
     setLoading(true);
 
     try {
-      const data: CreateStudentData | UpdateStudentData = {
+      const data = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         dateOfBirth: formData.dateOfBirth || undefined,
@@ -108,9 +118,15 @@ export function StudentForm({ student, onboardingData, onClose }: StudentFormPro
       };
 
       if (student) {
-        await updateStudent(student.id, data);
+        const updatedStudent = await updateStudentAction(student.id, data);
+        if (updatedStudent && onStudentUpdated) {
+          onStudentUpdated(updatedStudent);
+        }
       } else {
-        await createStudent(data as CreateStudentData);
+        const newStudent = await createStudentAction(data as CreateStudentData);
+        if (newStudent && onStudentCreated) {
+          onStudentCreated(newStudent);
+        }
       }
 
       onClose();
@@ -253,7 +269,10 @@ export function StudentForm({ student, onboardingData, onClose }: StudentFormPro
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button 
+              type="submit" 
+              disabled={loading || !formData.firstName || !formData.lastName || !formData.gradeLevel}
+            >
               {loading ? 'Saving...' : student ? 'Update Student' : 'Add Student'}
             </Button>
           </div>

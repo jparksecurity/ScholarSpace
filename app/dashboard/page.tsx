@@ -16,7 +16,7 @@ export default async function DashboardPage() {
         <div className="p-6 border rounded-lg bg-card">
           <h2 className="text-xl font-semibold mb-2">Welcome!</h2>
           <p className="text-muted-foreground">
-            You're now authenticated and can access protected content.
+            You&apos;re now authenticated and can access protected content.
           </p>
         </div>
         <div className="p-6 border rounded-lg bg-card">

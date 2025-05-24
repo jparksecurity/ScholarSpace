@@ -10,7 +10,6 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   Panel,
-  Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -146,7 +145,7 @@ export default function CurriculumGraph({ nodes, edges }: CurriculumGraphProps) 
     const filteredNodeIds = new Set(filteredNodes.map(node => node.id));
 
     // Create React Flow nodes as dots - TEMPORARILY using default nodes for debugging
-    const flowNodes: Node[] = filteredNodes.map((node, index) => ({
+    const flowNodes: Node[] = filteredNodes.map((node) => ({
       id: node.id,
       type: 'default', // Changed from 'circular' to 'default' for testing
       position: { x: 0, y: 0 }, // Will be set by layout algorithm

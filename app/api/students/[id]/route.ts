@@ -83,9 +83,9 @@ export async function PUT(
     }
 
     // Update student and enrollments in a transaction
-    const updatedStudent = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       // Update the student
-      const student = await tx.student.update({
+      await tx.student.update({
         where: { id: params.id },
         data: {
           firstName,
@@ -115,8 +115,6 @@ export async function PUT(
           })),
         });
       }
-
-      return student;
     });
 
     // Fetch the complete updated student data

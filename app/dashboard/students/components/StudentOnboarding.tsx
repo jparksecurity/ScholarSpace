@@ -133,9 +133,9 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
     <div className="space-y-6">
       <div className="text-center">
         <BookOpen className="h-16 w-16 mx-auto text-blue-600 mb-4" />
-        <h3 className="text-2xl font-bold mb-2">Let's Set Up Your Student's Profile</h3>
+        <h3 className="text-2xl font-bold mb-2">Let&apos;s Set Up Your Student&apos;s Profile</h3>
         <p className="text-muted-foreground max-w-md mx-auto">
-          We'll go through a few key learning concepts to understand where your student is in their learning journey. 
+          We&apos;ll go through a few key learning concepts to understand where your student is in their learning journey. 
           This helps us provide personalized recommendations.
         </p>
       </div>
@@ -145,7 +145,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
           <CardHeader>
             <CardTitle className="text-lg">Detailed Assessment</CardTitle>
             <CardDescription>
-              Go through each concept to accurately assess your student's current level
+              Go through each concept to accurately assess your student&apos;s current level
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -157,7 +157,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
           <CardHeader>
             <CardTitle className="text-lg">Quick Setup</CardTitle>
             <CardDescription>
-              Start with a fresh slate - mark everything as "Not Started" and assess later
+              Start with a fresh slate - mark everything as &quot;Not Started&quot; and assess later
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -188,7 +188,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
     </div>
   );
 
-  const renderAssessmentStep = (item: CurriculumSample, index: number) => (
+  const renderAssessmentStep = (item: CurriculumSample) => (
     <div className="space-y-6">
       <div className="text-center">
         <Badge variant="outline" className="mb-4">
@@ -263,7 +263,7 @@ export function StudentOnboarding({ onComplete, onClose }: StudentOnboardingProp
           <div className="min-h-[400px]">
             {currentStep === 0 
               ? renderIntroStep()
-              : renderAssessmentStep(curriculum[currentStep - 1], currentStep - 1)
+              : renderAssessmentStep(curriculum[currentStep - 1])
             }
           </div>
 

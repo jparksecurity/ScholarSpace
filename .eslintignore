@@ -1,0 +1,20 @@
+# Generated Prisma files
+lib/generated/
+lib/generated/prisma/
+
+# Next.js build output
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env*
+
+# Build outputs
+dist/
+build/
+
+# Generated files
+*.tsbuildinfo 

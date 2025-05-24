@@ -16,7 +16,7 @@ export default function LandingPage() {
               <span className="block text-orange-500">Homeschooling</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto">
-              Empower your children's education with our comprehensive platform designed specifically for modern homeschooling families.
+              Empower your children&apos;s education with our comprehensive platform designed specifically for modern homeschooling families.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/home">
@@ -67,7 +67,7 @@ export default function LandingPage() {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-center text-gray-600">
-                  Monitor your children's learning progress with detailed analytics and personalized insights.
+                  Monitor your children&apos;s learning progress with detailed analytics and personalized insights.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -98,7 +98,7 @@ export default function LandingPage() {
                 Tailored Learning for Every Child
               </h2>
               <p className="text-lg text-gray-600 mb-8">
-                Our platform adapts to each child's unique learning style and pace, ensuring no one gets left behind.
+                Our platform adapts to each child&apos;s unique learning style and pace, ensuring no one gets left behind.
               </p>
               <div className="space-y-4">
                 <div className="flex items-center">

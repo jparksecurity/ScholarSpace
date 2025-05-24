@@ -2,6 +2,13 @@ import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/lib/generated/prisma';
 
+interface ProgressData {
+  nodeId: string;
+  status?: string;
+  score?: number;
+  completedAt?: string;
+}
+
 const prisma = new PrismaClient();
 
 // GET /api/students - Get all students for the authenticated user
@@ -101,15 +108,34 @@ export async function POST(request: NextRequest) {
 
       // Create initial progress entries if provided
       if (currentProgress.length > 0) {
-        await tx.studentProgress.createMany({
-          data: currentProgress.map((progress: any) => ({
-            studentId: newStudent.id,
-            nodeId: progress.nodeId,
-            status: progress.status || 'NOT_STARTED',
-            score: progress.score,
-            completedAt: progress.completedAt ? new Date(progress.completedAt) : null,
-          })),
+        // First, check which curriculum nodes actually exist
+        const existingNodes = await tx.curriculumNode.findMany({
+          where: {
+            id: {
+              in: currentProgress.map((p: ProgressData) => p.nodeId),
+            },
+          },
+          select: { id: true },
         });
+        
+        const existingNodeIds = new Set(existingNodes.map(node => node.id));
+        const validProgress = currentProgress.filter((progress: ProgressData) => 
+          existingNodeIds.has(progress.nodeId)
+        );
+
+        console.log(`Found ${existingNodes.length} existing curriculum nodes out of ${currentProgress.length} requested`);
+        
+        if (validProgress.length > 0) {
+          await tx.studentProgress.createMany({
+            data: validProgress.map((progress: ProgressData) => ({
+              studentId: newStudent.id,
+              nodeId: progress.nodeId,
+              status: progress.status || 'NOT_STARTED',
+              score: progress.score,
+              completedAt: progress.completedAt ? new Date(progress.completedAt) : null,
+            })),
+          });
+        }
       }
 
       return newStudent;

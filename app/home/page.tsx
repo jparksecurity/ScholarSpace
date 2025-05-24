@@ -106,13 +106,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <Card>
               <CardHeader>
-                <CardTitle>Emily's Progress</CardTitle>
+                <CardTitle>Emily&apos;s Progress</CardTitle>
                 <div className="text-3xl font-bold text-orange-500">75%</div>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Ethan's Progress</CardTitle>
+                <CardTitle>Ethan&apos;s Progress</CardTitle>
                 <div className="text-3xl font-bold text-orange-500">60%</div>
               </CardHeader>
             </Card>
@@ -121,14 +121,14 @@ export default function HomePage() {
           <div className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">Emily's Progress</span>
+                <span className="font-medium">Emily&apos;s Progress</span>
                 <span className="text-sm text-gray-600">75%</span>
               </div>
               <Progress value={75} className="h-3" />
             </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">Ethan's Progress</span>
+                <span className="font-medium">Ethan&apos;s Progress</span>
                 <span className="text-sm text-gray-600">60%</span>
               </div>
               <Progress value={60} className="h-3" />
