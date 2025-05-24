@@ -1,0 +1,50 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CurriculumNode {
+  id           String   @id
+  unitTitle    String   @map("unit_title")
+  unitNumber   Int      @map("unit_number")
+  courseTitle  String   @map("course_title")
+  coursePath   String   @map("course_path")
+  gradeLevel   String   @map("grade_level")
+  subject      String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  outgoingEdges CurriculumEdge[] @relation("FromNode")
+  incomingEdges CurriculumEdge[] @relation("ToNode")
+
+  @@map("curriculum_nodes")
+}
+
+model CurriculumEdge {
+  id               String @id @default(cuid())
+  fromNodeId       String @map("from_node_id")
+  toNodeId         String @map("to_node_id")
+  relationshipType String @map("relationship_type")
+  description      String
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  fromNode CurriculumNode @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode   CurriculumNode @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([fromNodeId, toNodeId])
+  @@map("curriculum_edges")
+}
